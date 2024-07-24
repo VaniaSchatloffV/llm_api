@@ -62,4 +62,4 @@ def invoke_llm(prompt, conversation_id, temperature=0.1, top_p=0.9):
 
 def send_prompt(prompt: str, conversation_id: int):
     response, conv = invoke_llm(prompt, conversation_id)
-    return (response[0]["text"], conv)
+    return (response[0]["text"])
