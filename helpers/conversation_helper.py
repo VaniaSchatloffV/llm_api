@@ -45,5 +45,7 @@ def get_messages(conversation_id: int):
     """
     with DBHandler() as db:
         messages = db.select(get_messages_query, (conversation_id,))
+        if messages is None:
+            return []
         messages = [item[0] for item in messages]
         return messages
