@@ -1,5 +1,6 @@
-from handlers.DBHandler import DBHandler
+from helpers import conversation_helper
+a = conversation_helper.get_messages(2)
+print(a)
+print(type(a))
 
-with DBHandler() as db:
-    result = db.select("select * from test")
-    print(result)
+#conversation_helper.insert_message(1, "assistant", "holaaa")

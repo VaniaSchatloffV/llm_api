@@ -1,5 +1,5 @@
 from typing import Optional
-from controllers import bedrock_controller
+from controllers import bedrock_controller, conversation_controller
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -15,7 +15,25 @@ class Message(BaseModel):
     conversation_id: int
     user_id: int
 
+class Conversations(BaseModel):
+    user_id: int
+
+class Conversation(BaseModel):
+    conversation_id: int
+
+
 @app.post("/sendMessage/")
-def read_root(message: Message):
+def send_prompt(message: Message):
     return bedrock_controller.send_prompt(message.prompt, message.conversation_id, message.user_id)
+
+
+@app.get("/getConversations/")
+def get_conversation(conversation: Conversations):
+    return conversation_controller.get_conversation(conversation.user_id)
+
+
+@app.get("/getConversationMessages/")
+def get_conversation(conversation: Conversation):
+    return conversation_controller.get_conversation_messages(conversation.conversation_id)
+
 

@@ -1,5 +1,6 @@
 from typing import Optional
 import psycopg2
+import psycopg2.extras
 import os
 
 # Datos de conexión a la base de datos PostgreSQL
@@ -42,13 +43,13 @@ class DBHandler():
     )
         
     def execute(self, query, params: Optional[tuple] = ()):
-        cursor = self.connection.cursor()
+        cursor = self.connection.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
         cursor.execute(query, params)
         self.connection.commit()
         cursor.close()
     
     def select(self, query, params: Optional[tuple] = ()):
-        cursor = self.connection.cursor()
+        cursor = self.connection.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
         cursor.execute(query, params)
         result = cursor.fetchall()
         cursor.close()
@@ -59,7 +60,7 @@ class DBHandler():
         Inserta fila en tabla y retorna el ultimo id.
         La columna identificadora debe llamarse id.
         """
-        cursor = self.connection.cursor()
+        cursor = self.connection.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
         cursor.execute(query + " RETURNING id", params)
         self.connection.commit()
         id = cursor.fetchone()[0]

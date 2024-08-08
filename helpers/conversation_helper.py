@@ -47,5 +47,5 @@ def get_messages(conversation_id: int):
         messages = db.select(get_messages_query, (conversation_id,))
         if messages is None:
             return []
-        messages = [item[0] for item in messages]
+        messages = [item.get("message") for item in messages]
         return messages
