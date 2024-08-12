@@ -63,7 +63,7 @@ class DBHandler():
         cursor = self.connection.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
         cursor.execute(query + " RETURNING id", params)
         self.connection.commit()
-        id = cursor.fetchone()[0]
+        id = cursor.fetchone().get("id")
         cursor.close()
         return id
     

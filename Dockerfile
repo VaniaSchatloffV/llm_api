@@ -5,4 +5,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 EXPOSE 8007
 # CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8007"]
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8007", "--reload"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8007", "--reload"]
