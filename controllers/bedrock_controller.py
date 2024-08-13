@@ -4,7 +4,8 @@ import numpy as np
 import pandas as pd
 
 from botocore.exceptions import ClientError
-from helpers import conversation_helper
+from handlers.DBHandler import DBHandler
+from helpers import conversation_helper, file_helper
 
 
 def invoke_llm(messages: list, system_prompt: str, temperature=0.1, top_p=0.9):
@@ -57,9 +58,45 @@ def send_prompt(prompt: str, conversation_id: int, user_id: int):
         conversation_id = conversation_helper.new_conversation(user_id)  # si no existe la conversación, se crea y retorna nuevo id
     conversation_helper.insert_message(conversation_id, "user", prompt)
     messages = conversation_helper.get_messages(conversation_id)
-    
-    response = invoke_llm(messages=messages, system_prompt="reemplaza todas las vocales de tu respuesta con la letra 'A'")
+    system_prompt = """ Las siguientes son descripciones de una tabla y sus campos en una base de datos:
+
+                create table messages(
+                    id SERIAL,
+                    conversation_id INT,
+                    message JSON,
+                    created_at TIMESTAMP default NOW(),
+                    PRIMARY KEY(id),
+                    FOREIGN KEY (conversation_id) REFERENCES conversations(id));
+
+                create table conversations(
+                    id SERIAL,
+                    user_id INT,
+                    name varchar(256),
+                    created_at TIMESTAMP default NOW(),
+                    finished_at TIMESTAMP,
+                    PRIMARY KEY (id));
+                
+                CREATE TABLE users (
+                    id SERIAL,
+                    name VARCHAR(128),
+                    lastname VARCHAR(128),
+                    email VARCHAR(256),
+                    password VARCHAR(512),
+                    role_id INT,
+                    PRIMARY KEY (id)
+                );
+
+                Con esta información, necesito que traduzcas consultas en lenguaje natural a consultas SQL.
+
+                No respondas con nada más que el SQL generado, un ejemplo de esto es: "SELECT * FROM pacientes;", fijate como NO hay '\n' en la respuesta. Tampoco agregues cordialidades o explicaciones, responde solo con SQL.
+
+                Si se te pide información que no esta en la tabla no la agregues a la consulta, responde lo que puedas, pero no des explicaciones, responde solo con SQL.
+
+                Si se te pide modificar la base de datos, indica que no lo tienes permitido, este es el unico caso donde puedes no usar SQL.""" 
+
+    response = invoke_llm(messages=messages, system_prompt=system_prompt)
     # invoca llm
     conversation_helper.insert_message(conversation_id, "assistant", response)
+    
     # retorna estructura para leer desde backend-frontend
     return {"response": response[0]["text"], "conversation_id": conversation_id}
