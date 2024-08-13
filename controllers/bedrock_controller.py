@@ -97,6 +97,12 @@ def send_prompt(prompt: str, conversation_id: int, user_id: int):
     response = invoke_llm(messages=messages, system_prompt=system_prompt)
     # invoca llm
     conversation_helper.insert_message(conversation_id, "assistant", response)
-    
+    if "SELECT" in response[0]["text"]:
+        query = response[0]["text"]
+        query = query.split("SELECT")[1]
+        query = "SELECT " + query.split(";")[0]
+        with DBHandler() as db:
+            data = db.select(query)
+            file_helper.to_excel(data)
     # retorna estructura para leer desde backend-frontend
     return {"response": response[0]["text"], "conversation_id": conversation_id}
