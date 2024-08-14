@@ -104,5 +104,6 @@ def send_prompt(prompt: str, conversation_id: int, user_id: int):
         with DBHandler() as db:
             data = db.select(query)
             file_helper.to_excel(data)
+            file_helper.to_csv(data)
     # retorna estructura para leer desde backend-frontend
     return {"response": response[0]["text"], "conversation_id": conversation_id}
