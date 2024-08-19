@@ -1,3 +1,4 @@
+import os
 import boto3
 import json
 import numpy as np
@@ -7,6 +8,7 @@ from botocore.exceptions import ClientError
 from handlers.DBHandler import DBHandler
 from helpers import conversation_helper, file_helper
 
+URL = os.getenv("HOST") + ":" + os.getenv("PORT")
 
 def invoke_llm(messages: list, system_prompt: str, temperature=0.1, top_p=0.9):
     """
@@ -95,15 +97,17 @@ def send_prompt(prompt: str, conversation_id: int, user_id: int):
                 Si se te pide modificar la base de datos, indica que no lo tienes permitido, este es el unico caso donde puedes no usar SQL.""" 
 
     response = invoke_llm(messages=messages, system_prompt=system_prompt)
-    # invoca llm
-    conversation_helper.insert_message(conversation_id, "assistant", response)
+    
     if "SELECT" in response[0]["text"]:
         query = response[0]["text"]
         query = query.split("SELECT")[1]
         query = "SELECT " + query.split(";")[0]
         with DBHandler() as db:
             data = db.select(query)
-            file_helper.to_excel(data)
-            file_helper.to_csv(data)
+            file_name_excel = str(file_helper.to_excel(data))
+            file_name_csv = str(file_helper.to_csv(data))
+            response = [{"text": "Descargar el archivo en el siguiente link: \nExcel: {} \nCSV: {}".format(URL + "/download/" + file_name_excel + "/xlsx", URL + "/download/" + file_name_csv + "/csv")}]
+    else:
+        conversation_helper.insert_message(conversation_id, "assistant", response)
     # retorna estructura para leer desde backend-frontend
     return {"response": response[0]["text"], "conversation_id": conversation_id}

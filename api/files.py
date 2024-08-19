@@ -9,10 +9,10 @@ class File(BaseModel):
     file_id: int
 
 
-@router.get("/download/csv")
-def download_csv(file: File):
-    return FileResponse(file_helper.get_file_csv_name(file.file_id), media_type="csv")
+@router.get("/download/{file_id}/csv")
+def download_csv(file_id):
+    return FileResponse(file_helper.get_file_csv_name(file_id), media_type="csv")
 
-@router.get("/download/xlsx")
-def download_csv(file: File):
-    return FileResponse(file_helper.get_file_xlsx_name(file.file_id), media_type="xlsx")
+@router.get("/download/{file_id}/xlsx")
+def download_csv(file_id):
+    return FileResponse(file_helper.get_file_xlsx_name(file_id), media_type="xlsx")
