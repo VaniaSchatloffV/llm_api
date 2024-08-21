@@ -1,3 +1,4 @@
+from configs.config import get_settings
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 from io import BytesIO
@@ -6,26 +7,28 @@ import pandas as pd
 import os
 import random
 
+settings = get_settings()
+
 def to_csv(data: list):
     file_id = random.randint(0, 100000)
-    file_path = os.getenv("TEMP_FILES") + "/" + str(file_id) + ".csv"
+    file_path = settings.temp_files + "/" + str(file_id) + ".csv"
     df = pd.DataFrame(data)
     df.to_csv(file_path)
     return file_id
 
 def to_excel(data: list):
     file_id = random.randint(0, 100000)
-    file_path = os.getenv("TEMP_FILES") + "/" + str(file_id) + ".xlsx"
+    file_path = settings.temp_files + "/" + str(file_id) + ".xlsx"
     df = pd.DataFrame(data)
     df.to_excel(file_path)
     return file_id
 
 def get_file_csv_name(file_id: int):
-    file_path = os.getenv("TEMP_FILES") + "/" +  str(file_id) + ".csv"
+    file_path = settings.temp_files + "/" +  str(file_id) + ".csv"
     return file_path
 
 def get_file_xlsx_name(file_id: int):
-    file_path = os.getenv("TEMP_FILES") + "/" +  str(file_id) + ".xlsx"
+    file_path = settings.temp_files + "/" +  str(file_id) + ".xlsx"
     return file_path
 
 def file_iterator(file_path: str):

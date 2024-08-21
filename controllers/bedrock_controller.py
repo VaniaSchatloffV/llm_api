@@ -7,8 +7,11 @@ import pandas as pd
 from botocore.exceptions import ClientError
 from handlers.DBHandler import DBHandler
 from helpers import conversation_helper, file_helper
+from configs.config import get_settings
 
-URL = os.getenv("HOST") + ":" + os.getenv("PORT")
+settings = get_settings()
+
+URL = settings.host + ":" + str(settings.port)
 
 def invoke_llm(messages: list, system_prompt: str, temperature=0.1, top_p=0.9):
     """
