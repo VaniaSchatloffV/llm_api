@@ -1,13 +1,18 @@
+from configs.config import get_settings
+
 from typing import Optional
 import psycopg2
+import psycopg2.extras
 import os
 
+settings = get_settings()
+
 # Datos de conexión a la base de datos PostgreSQL
-db_host = os.getenv("POSTGRES_HOST")
-db_port = os.getenv("POSTGRES_PORT")
-db_name = os.getenv("POSTGRES_DB")
-db_user = os.getenv("POSTGRES_USER")
-db_password = os.getenv("POSTGRES_PASSWORD")
+db_host = settings.postgres_host
+db_port = settings.postgres_port
+db_name = settings.postgres_db
+db_user = settings.postgres_user
+db_password = settings.postgres_password
 
 
 class DBHandler():
@@ -42,13 +47,13 @@ class DBHandler():
     )
         
     def execute(self, query, params: Optional[tuple] = ()):
-        cursor = self.connection.cursor()
+        cursor = self.connection.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
         cursor.execute(query, params)
         self.connection.commit()
         cursor.close()
     
     def select(self, query, params: Optional[tuple] = ()):
-        cursor = self.connection.cursor()
+        cursor = self.connection.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
         cursor.execute(query, params)
         result = cursor.fetchall()
         cursor.close()
@@ -59,10 +64,10 @@ class DBHandler():
         Inserta fila en tabla y retorna el ultimo id.
         La columna identificadora debe llamarse id.
         """
-        cursor = self.connection.cursor()
+        cursor = self.connection.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
         cursor.execute(query + " RETURNING id", params)
         self.connection.commit()
-        id = cursor.fetchone()[0]
+        id = cursor.fetchone().get("id")
         cursor.close()
         return id
     

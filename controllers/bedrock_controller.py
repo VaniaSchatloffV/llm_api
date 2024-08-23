@@ -1,16 +1,22 @@
+import os
 import boto3
 import json
 import numpy as np
 import pandas as pd
 
-#RAG
 from langchain_community.llms import Bedrock
 from langchain_community.embeddings import BedrockEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.vectorstores import FAISS
 
 from botocore.exceptions import ClientError
-from helpers import conversation_helper
+from handlers.DBHandler import DBHandler
+from helpers import conversation_helper, file_helper
+from configs.config import get_settings
+
+settings = get_settings()
+
+URL = settings.host + ":" + str(settings.port)
 
 #RAG
 my_data = [
@@ -46,7 +52,6 @@ my_data = [
     'id_paciente' de tipo int: es clave foránea de la tabla "pacientes".
 
     """]
-
 
 def invoke_llm(messages: list, temperature=0, top_p=0.1):
     question = "¿Cuál es el tipo de cáncer más común entre los pacientes atendidos en el hospital del Norte??"
@@ -151,9 +156,9 @@ def send_prompt(prompt: str, conversation_id: int, user_id: int):
     conversation_helper.insert_message(conversation_id, "user", prompt)
     messages = conversation_helper.get_messages(conversation_id)
     
-
     response = invoke_llm(messages=messages)
     # invoca llm
     conversation_helper.insert_message(conversation_id, "assistant", response)
+
     # retorna estructura para leer desde backend-frontend
     return {"response": response, "conversation_id": conversation_id}
