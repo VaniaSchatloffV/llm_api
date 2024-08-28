@@ -29,4 +29,3 @@ def get_conversation(conversation: Conversations):
 @router.get("/getConversationMessages/")
 def get_conversation(conversation: Conversation):
     return conversation_controller.get_conversation_messages(conversation.conversation_id)
-

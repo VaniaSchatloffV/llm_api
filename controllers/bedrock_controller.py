@@ -5,9 +5,13 @@ import numpy as np
 import pandas as pd
 
 from langchain_community.llms import Bedrock
+Rafrom langchain_core.prompts import ChatPromptTemplate
 from langchain_community.embeddings import BedrockEmbeddings
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.vectorstores import FAISS
+from langchain.memory import ConversationBufferMemory
+from langchain.chains import ConversationChain
+from langchain.chains import LLMChain
+
 
 from botocore.exceptions import ClientError
 from handlers.DBHandler import DBHandler
@@ -53,9 +57,69 @@ my_data = [
 
     """]
 
-def invoke_llm(messages: list, temperature=0, top_p=0.1):
-    question = "¿Cuál es el tipo de cáncer más común entre los pacientes atendidos en el hospital del Norte??"
+#def invoke_llm(messages: list, temperature=0, top_p=0.1):
+#    question = messages[-1].get("content")
+#    print("Pregunta:", question)
 
+#    bedrock = boto3.client(service_name="bedrock-runtime", region_name="us-east-1")
+
+#    model = Bedrock(model_id="anthropic.claude-v2:1", client=bedrock)  # Revisa modelos
+
+#    bedrock_embeddings = BedrockEmbeddings(model_id="amazon.titan-embed-text-v1", client=bedrock)  # Revisa modelos
+
+    # Crear vector store
+#    vector_store = FAISS.from_texts(my_data, bedrock_embeddings)
+
+    # Crear retriever
+#    retriever = vector_store.as_retriever(search_kwargs={"k": 3})
+
+#    results = retriever.get_relevant_documents(question)
+
+#    results_string = [result.page_content for result in results]
+
+    # Crear memoria
+#    memory = ConversationBufferMemory()
+
+    # Crear template
+#    template = ChatPromptTemplate.from_messages(
+#        [
+    #         (
+    #             "system",
+    #             """Reconoce si lo que se te pregunta es una pregunta o simplemente una conversación. Si es una pregunta:
+    #             Las siguientes son descripciones de una tabla y sus campos en una base de datos:
+
+    #             {context}.
+
+    #             Con esta información, necesito que traduzcas consultas en lenguaje natural a consultas SQL.
+    #             No respondas con nada más que el SQL generado, un ejemplo de SQL es: "SELECT * FROM pacientes;", fíjate como NO hay '\n' en la respuesta. Tampoco agregues cordialidades o explicaciones, responde solo con SQL.
+    #             Si se te pide información que no está en la tabla no la agregues a la consulta, responde lo que puedas, pero no des explicaciones, responde solo con SQL.
+    #             Si se te pide modificar la base de datos, indica que no lo tienes permitido, este es el único caso donde puedes no usar SQL.
+
+    #             En caso de que sea una conversación, responde indicando qué eres y cuál es tu función, la cual es ´Soy un asistente virtual que tiene como fin recibir preguntas referentes a la información de la base de datos de FALP, por favor formula tu pregunta´, en caso de que la conversación siga
+    #             debes seguir respondiendo con mensajes que orienten al usuario a hacer una pregunta en la base de datos.
+    #             """
+    #         ),
+    #         (
+    #             "user",
+    #             "{input}"
+    #         ),
+    #     ]
+    # )
+
+    # chain = template.pipe(model)
+    # #chain = ConversationChain(llm=model, prompt=template)#, memory=memory)
+
+    # response = chain.invoke({"input": question, "context": results_string})
+
+    # # Guardar memoria
+    # memory.save_context({"input": question}, {"output": response})
+
+    # return response
+
+def invoke_llm(messages: list, temperature=0, top_p=0.1):
+    print(messages)
+    question = messages[len(messages)-1].get("content")
+    
     bedrock = boto3.client(service_name="bedrock-runtime", region_name="us-east-1")
 
     model = Bedrock(model_id="anthropic.claude-v2:1", client=bedrock) # Revisar modelos
@@ -79,27 +143,36 @@ def invoke_llm(messages: list, temperature=0, top_p=0.1):
     # build template:
     template = ChatPromptTemplate.from_messages(
         [
-            (
+        (
 
-                "system",
-                """Las siguientes son descripciones de una tabla y sus campos en una base de datos:
+            "assistant",
+            """Reconoce si lo que se te pregunta es una pregunta o simplemente una conversacion. si es una pregunta:Las siguientes son descripciones de una tabla y sus campos en una base de datos
+
+            {context}.
+
+            Con esta información, necesito que traduzcas consultas en lenguaje natural a consultas SQL.
+            No respondas con nada más que el SQL generado, un ejemplo de SQL es: "SELECT * FROM pacientes;", fijate como NO hay '\n' en la respuesta. Tampoco agregues cordialidades o explicaciones, responde solo con SQL.
+            Si se te pide informacion que no esta en la tabla no la agregues a la consulta, responde lo que puedas, pero no des explicaciones, responde solo con SQL.
+            Si se te pide modificar la base de datos, indica que no lo tienes permitido, este es el único caso donde puedes no usar SQL.
+
+            En caso de que sea una conversacion, respondes indicando qué eres y cuál es tu función, la cual es 'Soy un asistente virtual que tiene como fin recibir preguntas referentes a la informacion de la base de datos de FALP, por favor formula tu pregunta', en caso de que la conversacion siga
+            debes seguir respondiendo con mensajes que orienten al usuario a hacer una pregunta en la base de datos. 
+            """
+        ),
+        (
+            "human",
             
-                {context}.
-                
-                Con esta información, necesito que traduzcas consultas en lenguaje natural a consultas SQL.
-                No respondas con nada más que el SQL generado, un ejemplo de SQL es: "SELECT * FROM pacientes;", fijate como NO hay '\n' en la respuesta. Tampoco agregues cordialidades o explicaciones, responde solo con SQL.
-                Si se te pide informacion que no esta en la tabla no la agregues a la consulta, responde lo que puedas, pero no des explicaciones, responde solo con SQL.
-                Si se te pide modificar la base de datos, indica que no lo tienes permitido, este es el único caso donde puedes no usar SQL.
-                """
-            ),
-            (
-                "user",
-                "{input}"
-            ),
-        ]
+            """
+            {chat_history}
+            {input}
+            """
+        ),
+    ]
     )
 
-    chain = template.pipe(model)
+    memory = ConversationBufferMemory(memory_key="chat_history")
+
+    chain = LLMChain(llm=model, prompt=template, memory=memory)
 
     response = chain.invoke({"input": question, "context": results_string})
     return response
@@ -160,5 +233,5 @@ def send_prompt(prompt: str, conversation_id: int, user_id: int):
     # invoca llm
     conversation_helper.insert_message(conversation_id, "assistant", response)
 
-    # retorna estructura para leer desde backend-frontend
+    # retorna estructura para leer desde backend-frontend 
     return {"response": response, "conversation_id": conversation_id}
