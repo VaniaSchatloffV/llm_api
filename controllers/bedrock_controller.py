@@ -5,9 +5,10 @@ import numpy as np
 import pandas as pd
 
 from botocore.exceptions import ClientError
+
+from configs.config import get_settings
 from handlers.DBHandler import DBHandler
 from helpers import conversation_helper, file_helper
-from configs.config import get_settings
 
 settings = get_settings()
 
@@ -58,11 +59,7 @@ def invoke_llm(messages: list, system_prompt: str, temperature=0.1, top_p=0.9):
         raise err
 
 
-def send_prompt(prompt: str, conversation_id: int, user_id: int):
-    if conversation_id == 0:
-        conversation_id = conversation_helper.new_conversation(user_id)  # si no existe la conversación, se crea y retorna nuevo id
-    conversation_helper.insert_message(conversation_id, "user", prompt)
-    messages = conversation_helper.get_messages(conversation_id)
+def send_prompt(messages: list):
     system_prompt = """ Las siguientes son descripciones de una tabla y sus campos en una base de datos:
 
                 create table messages(
@@ -98,19 +95,55 @@ def send_prompt(prompt: str, conversation_id: int, user_id: int):
                 Si se te pide información que no esta en la tabla no la agregues a la consulta, responde lo que puedas, pero no des explicaciones, responde solo con SQL.
 
                 Si se te pide modificar la base de datos, indica que no lo tienes permitido, este es el unico caso donde puedes no usar SQL.""" 
+    response =  invoke_llm(messages=messages, system_prompt=system_prompt)
+    return response
 
-    response = invoke_llm(messages=messages, system_prompt=system_prompt)
     
-    if "SELECT" in response[0]["text"]:
-        query = response[0]["text"]
+
+def send_prompt_and_process(prompt: str, conversation_id: int, user_id: int):
+    # si no existe la conversación, se crea y retorna nuevo id
+    if conversation_id == 0:
+        conversation_id = conversation_helper.new_conversation(user_id)
+
+    # Si el prompt es un tipo de archivo
+    if prompt in file_helper.OPTIONS:
+        # se revisa si el ultimo mensaje fue pidiendo el tipo de archivo
+        last_message = conversation_helper.get_option_messages(conversation_id)
+        if last_message.get("role") == "assistant":
+            conversation_helper.insert_message(conversation_id, "user", prompt, "option")
+        else:
+            conversation_helper.insert_message(conversation_id, "user", prompt)
+    else:
+        conversation_helper.insert_message(conversation_id, "user", prompt)
+    
+    # Se obtienen mensajes anteriores para la llm
+    messages = conversation_helper.get_messages_for_llm(conversation_id)
+
+    # Si el mensaje es para definir el archivo de descarga
+    if prompt in file_helper.OPTIONS:
+        try:
+            if last_message.get("role") == "assistant":
+                query = conversation_helper.get_last_query(conversation_id)
+                with DBHandler() as db:
+                    data = db.select(query)
+                file_id = file_helper.to_file(prompt, data)
+                resp = {"text": "El archivo ya está listo", "file_id": file_id, "file_type": prompt}
+                conversation_helper.insert_message(conversation_id, "assistant", resp, type="file")
+                return {"response": resp, "conversation_id": conversation_id}
+        except Exception as e:
+            print(e)
+            pass
+    response = send_prompt(messages)
+    resp = response[0].get("text")
+    if "SELECT" in resp:
+        query = resp
         query = query.split("SELECT")[1]
         query = "SELECT " + query.split(";")[0]
-        with DBHandler() as db:
-            data = db.select(query)
-            file_name_excel = str(file_helper.to_excel(data))
-            file_name_csv = str(file_helper.to_csv(data))
-            response = [{"text": "Descargar el archivo en el siguiente link: \nExcel: {} \nCSV: {}".format(URL + "/download/" + file_name_excel + "/xlsx", URL + "/download/" + file_name_csv + "/csv")}]
-    else:
-        conversation_helper.insert_message(conversation_id, "assistant", response)
-    # retorna estructura para leer desde backend-frontend
-    return {"response": response[0]["text"], "conversation_id": conversation_id}
+        conversation_helper.insert_message(conversation_id, "assistant", query, "query")
+        resp = {"text": "¿En qué formato desea recibir la información?"}
+        resp["options"] = file_helper.OPTIONS
+        conversation_helper.insert_message(conversation_id, "assistant", resp, type="option")
+        return {"response": resp, "conversation_id": conversation_id}
+
+    conversation_helper.insert_message(conversation_id, "assistant", resp)
+    return {"response": resp, "conversation_id": conversation_id}
