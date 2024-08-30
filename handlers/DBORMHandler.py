@@ -101,68 +101,63 @@ class DB_ORM_Handler(object):
 
         return True
 
-    def query(self, query):
+    def query(self, query, return_data: Optional[bool] = False):
         """
-        Ejecuta querys en texto
+        Ejecuta queries en texto y retorna los resultados como diccionarios si se especifica.
         """
         try:
             statement = text(query)
             rs = self.session.execute(statement)
+            if return_data:
+                # Obtener nombres de columnas
+                keys = rs.keys()
+                # Convertir cada fila en un diccionario
+                return [dict(zip(keys, row)) for row in rs.fetchall()]
             return rs
 
         except Exception as e:
             raise e
 
-    def getObjects(self, p_obj, *args, defer_cols=[], order_by=None, **kwargs):
+
+    def getObjects(self, p_obj, *args, defer_cols=[], columns: Optional[list] = None, order_by: Optional[list] = None, limit: Optional[int] = None, **kwargs):
         
-        @timeout(5.0)
-        def execute_query():
-            sess = self.session()
-            rs = None
-            error = False
-            exception = None
+        sess = self.session()
+        query = sess.query(*columns) if columns else sess.query(p_obj)
+        
+        # Apply filters
+        if args:
+            query = query.filter(*args)
+        if kwargs:
+            query = query.filter_by(**kwargs)
 
-            for retry in range(0, 10):
-                try:
-                    query = sess.query(p_obj)
+        # Apply order by
+        if order_by:
+            query = query.order_by(*order_by)
 
-                    # Apply filters if any
-                    if len(kwargs) > 0 or len(args) > 0:
-                        query = query.filter_by(**kwargs) if len(kwargs) > 0 else query.filter(*args)
+        # Defer columns if needed
+        if defer_cols:
+            for col in defer_cols:
+                query = query.options(defer(col))
 
-                    # Apply deferred columns if any
-                    if len(defer_cols) > 0:
-                        defer_lst = list([defer(x) for x in defer_cols])
-                        query = query.options(*defer_lst)
-
-                    # Apply order_by if provided
-                    if order_by:
-                        query = query.order_by(*order_by)
-
-                    rs = query.all()
-                    error = False
-
-                except Exception as e:
-                    error = True
-                    exception = e
-                    time.sleep(5)
-                finally:
-                    self.session.remove()
-                    self.session.close()
-
-                if not error:
-                    break
-
-            if error:
-                raise exception
-
-            return rs
+        # Apply limit if specified
+        if limit:
+            query = query.limit(limit)
 
         try:
-            return execute_query()
+            results = query.all()
+            
+            if columns:
+                # Convert tuples to dictionaries or custom objects
+                results = [dict(zip([col.key for col in columns], row)) for row in results]
+            return results
+
         except Exception as e:
-            print("***** TIMEOUT *****", e)
-            return None
+            print("DatabaseError:", e)
+            raise e
+        finally:
+            self.session.remove()
+
+
 
         
     def refreshObject(self, p_obj):

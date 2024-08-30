@@ -15,8 +15,8 @@ def new_conversation(user_id: int):
     with DB_ORM_Handler() as db:
         Conversation = ConversationObject()
         Conversation.user_id = user_id
-        DB_ORM_Handler.initialize(Conversation)
-        conversation_id = DB_ORM_Handler.saveObject(Conversation, get_obj_attr=True, get_obj_attr_name="id")
+        db.createTable(Conversation)
+        conversation_id = db.saveObject(p_obj=Conversation, get_obj_attr=True, get_obj_attr_name="id")
         return conversation_id
 
 def insert_message(conversation_id: int, role: str, content: Union[list, str], type: str = "conversation"):
@@ -30,12 +30,12 @@ def insert_message(conversation_id: int, role: str, content: Union[list, str], t
         "role": role,
         "content": content
     }
-    message_json = json.dumps(message)
     Message = MessagesObject()
     Message.conversation_id = conversation_id
-    Message.message = message_json
+    Message.message = json.dumps(message)
     Message.type = type
     with DB_ORM_Handler() as db:
+        db.createTable(Message)
         db.saveObject(Message)
 
 def get_messages(conversation_id: int):
@@ -48,32 +48,12 @@ def get_messages(conversation_id: int):
             MessagesObject.conversation_id == conversation_id,
             MessagesObject.type == 'conversation',
             defer_cols=[],
-            order_by=[MessagesObject.id]
+            order_by=[MessagesObject.id],
+            columns = [MessagesObject.message]
         )
-        print(messages)
-        # if not messages:
-        #     return []
-        # messages = [item.message for item in messages]
-        # return messages
-
-def get_messages(conversation_id: int):
-    """
-    Obtiene los mensajes enviados en una conversación
-    """
-    with DB_ORM_Handler() as db:
-        messages = db.getObjects(
-            MessagesObject, 
-            MessagesObject.conversation_id == conversation_id,
-            MessagesObject.type.in_(['conversation', 'query']),
-            defer_cols=[],
-            order_by=[MessagesObject.id]
-        )
-        print(messages)
-        # if not messages:
-        #     return []
-        # messages = [item.message for item in messages]
-        # return messages
-    
+        if not messages:
+            return []
+        return messages
 
 def get_conversations(user_id: int):
     """
@@ -84,12 +64,29 @@ def get_conversations(user_id: int):
             ConversationObject,
             ConversationObject.user_id == user_id,
             defer_cols=[],
-            order_by=[ConversationObject.id.desc()]
+            order_by=[ConversationObject.id.desc()],
+            columns = [ConversationObject.id, ConversationObject.name, ConversationObject.created_at]
         )
-        print(conversations)
         if not conversations:
             return []
         return conversations
+
+def get_messages_for_llm(conversation_id: int):
+    """
+    Obtiene los mensajes enviados en una conversación que sean de tipo 'conversation' o 'query'
+    """
+    with DB_ORM_Handler() as db:
+        messages = db.getObjects(
+            MessagesObject,
+            MessagesObject.conversation_id == conversation_id,
+            MessagesObject.type.in_(['conversation', 'query']),
+            defer_cols=[],
+            order_by=[MessagesObject.id],
+            columns=[MessagesObject.message]
+        )
+        if not messages:
+            return []
+        return [json.loads(message.get("message")) for message in messages]
 
 def get_last_query(conversation_id: int):
     """
@@ -97,18 +94,17 @@ def get_last_query(conversation_id: int):
     """
     with DB_ORM_Handler() as db:
         messages = db.getObjects(
-            MessagesObject,
+            MessagesObject, 
             MessagesObject.conversation_id == conversation_id,
             MessagesObject.type == 'query',
             defer_cols=[],
             order_by=[desc(MessagesObject.id)],
-            limit=1
+            columns=[MessagesObject.message]
         )
-        print(messages)
         if messages:
             message = messages[0]
-            return message.content
-        return None
+            return json.loads(message.get("message")).get("content")
+        return []
 
 def get_option_messages(conversation_id: int):
     """
@@ -121,8 +117,9 @@ def get_option_messages(conversation_id: int):
             MessagesObject.type == 'option',
             defer_cols=[],
             order_by=[desc(MessagesObject.id)],
+            columns=[MessagesObject.message],
             limit=1
         )
         if not messages:
             return []
-        return messages[0].message
+        return json.loads(messages[0].get("message"))
