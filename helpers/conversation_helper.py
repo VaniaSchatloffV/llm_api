@@ -46,14 +46,14 @@ def get_messages(conversation_id: int):
         messages = db.getObjects(
             MessagesObject, 
             MessagesObject.conversation_id == conversation_id,
-            MessagesObject.type == 'conversation',
+            MessagesObject.type.in_(['conversation', 'option', 'file']),
             defer_cols=[],
             order_by=[MessagesObject.id],
             columns = [MessagesObject.message]
         )
         if not messages:
             return []
-        return [i.get("message") for i in messages]
+        return [json.loads(i.get("message")) for i in messages]
 
 def get_conversations(user_id: int):
     """

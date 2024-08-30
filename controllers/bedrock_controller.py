@@ -121,11 +121,9 @@ def send_prompt_and_process(prompt: str, conversation_id: int, user_id: int):
 
     # Si el mensaje es para definir el archivo de descarga
     if prompt in file_helper.OPTIONS:
-        print(prompt)
         try:
             if last_message.get("role") == "assistant":
                 query = conversation_helper.get_last_query(conversation_id)
-                print(query)
                 with DB_ORM_Handler() as db:
                     data = db.query(query, return_data=True)
                 file_id = file_helper.to_file(prompt, data)
@@ -133,7 +131,7 @@ def send_prompt_and_process(prompt: str, conversation_id: int, user_id: int):
                 conversation_helper.insert_message(conversation_id, "assistant", resp, type="file")
                 return {"response": resp, "conversation_id": conversation_id}
         except Exception as e:
-            print(e)
+            # AQUI AGREGAR CUANDO LA COSA FALLA Y PREGUNTAR POR QUÉ
             pass
     response = send_prompt(messages)
     resp = response[0].get("text")
