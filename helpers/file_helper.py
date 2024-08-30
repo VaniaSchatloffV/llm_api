@@ -1,5 +1,3 @@
-from handlers.DBHandler import DBHandler
-
 from configs.config import get_settings
 from fastapi import HTTPException
 from io import BytesIO

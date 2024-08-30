@@ -7,7 +7,7 @@ import pandas as pd
 from botocore.exceptions import ClientError
 
 from configs.config import get_settings
-from handlers.DBHandler import DBHandler
+from handlers.DBORMHandler import DB_ORM_Handler
 from helpers import conversation_helper, file_helper
 
 settings = get_settings()
@@ -109,7 +109,7 @@ def send_prompt_and_process(prompt: str, conversation_id: int, user_id: int):
     if prompt in file_helper.OPTIONS:
         # se revisa si el ultimo mensaje fue pidiendo el tipo de archivo
         last_message = conversation_helper.get_option_messages(conversation_id)
-        if last_message.get("role") == "assistant":
+        if last_message and last_message.get("role") == "assistant":
             conversation_helper.insert_message(conversation_id, "user", prompt, "option")
         else:
             conversation_helper.insert_message(conversation_id, "user", prompt)
@@ -121,11 +121,13 @@ def send_prompt_and_process(prompt: str, conversation_id: int, user_id: int):
 
     # Si el mensaje es para definir el archivo de descarga
     if prompt in file_helper.OPTIONS:
+        print(prompt)
         try:
             if last_message.get("role") == "assistant":
                 query = conversation_helper.get_last_query(conversation_id)
-                with DBHandler() as db:
-                    data = db.select(query)
+                print(query)
+                with DB_ORM_Handler() as db:
+                    data = db.query(query, return_data=True)
                 file_id = file_helper.to_file(prompt, data)
                 resp = {"text": "El archivo ya está listo", "file_id": file_id, "file_type": prompt}
                 conversation_helper.insert_message(conversation_id, "assistant", resp, type="file")
