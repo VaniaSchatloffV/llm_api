@@ -53,7 +53,7 @@ def get_messages(conversation_id: int):
         )
         if not messages:
             return []
-        return messages
+        return [i.get("message") for i in messages]
 
 def get_conversations(user_id: int):
     """
