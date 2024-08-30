@@ -1,7 +1,8 @@
 # DB_ORM_Handler
+from configs.config import get_settings
 
 import time
-from typing import Optional
+from typing import Optional, Type
 import sqlalchemy as sal
 from sqlalchemy import create_engine, and_
 from sqlalchemy.sql import func
@@ -16,15 +17,25 @@ from sqlalchemy.pool import NullPool
 
 import multiprocessing.pool
 import functools
+import pymysql
 import random
+
+settings = get_settings()
+
+# Datos de conexión a la base de datos PostgreSQL
+db_host = settings.postgres_host
+db_port = settings.postgres_port
+db_name = settings.postgres_db
+db_user = settings.postgres_user
+db_password = settings.postgres_password
+
+CONN = f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 
 def timeout(max_timeout):
     """Timeout decorator, parameter in seconds."""
     def timeout_decorator(item):
-        """Wrap the original function."""
         @functools.wraps(item)
         def func_wrapper(*args, **kwargs):
-            """Closure for function."""
             pool = multiprocessing.pool.ThreadPool(processes=1)
             async_result = pool.apply_async(item, args, kwargs)
             # raises a TimeoutError if execution exceeds max_timeout
@@ -37,25 +48,23 @@ class TableDoesNotExist(Exception):
 
 class DB_ORM_Handler(object):
 
-    def __init__(self, conn_str):
+    def __init__(self, conn_str: Optional[str] = CONN):
         try:
-            print("DB_ORM_Handler:init %s" % conn_str)
-            self.engine = sal.create_engine(conn_str, connect_args={'timeout': 60}, pool_reset_on_return=None,
+            self.engine = sal.create_engine(conn_str, pool_reset_on_return=None,
     isolation_level="AUTOCOMMIT",pool_pre_ping=True, pool_recycle=300, poolclass=NullPool )
         except Exception as e:
             raise e
 
         session_factory = sessionmaker(self.engine,expire_on_commit=False,autocommit=False, autoflush=False )
         self.session = scoped_session(session_factory)
-
-    # def __del__(self):
-    #     print("DB_ORM_Handler:closing engine")
-    #     self.engine.dispose()
     
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self.engine.dispose()
+
+    def __del__(self):
         self.engine.dispose()
 
     def getEngine(self):
@@ -71,17 +80,19 @@ class DB_ORM_Handler(object):
     def getTable(self,table_name):
         if self.existTable(table_name):
             engine = self.getEngine()
-            metadata = sal.MetaData(engine)
-            table = sal.Table(table_name, metadata, autoload=True, autoload_with=engine)
+            metadata = sal.MetaData()
+            table = sal.Table(table_name, metadata, autoload_with=engine)
 
             return table
         raise TableDoesNotExist(table_name)
 
-    def initialize(self, p_object):
+    def createTable(self, p_object):
+        """
+        Crea tablas
+        """
         if not self.existTable(p_object.__tablename__):
             engine = self.getEngine()
             try:
-                # Implement the creation
                 p_object.metadata.create_all(engine)
             except Exception as e:
                 print(e)
@@ -91,19 +102,18 @@ class DB_ORM_Handler(object):
         return True
 
     def query(self, query):
-        print("DB_ORM_Handler:query %s" % query)
+        """
+        Ejecuta querys en texto
+        """
         try:
             statement = text(query)
             rs = self.session.execute(statement)
-            print("DB_ORM_Handler:query %s" % rs)
             return rs
 
         except Exception as e:
-            print("error in query: %s" % query)
             raise e
 
-    def getObjects(self, p_obj, *args, defer_cols=[], **kwargs):
-        print("DB_ORM_Handler:getObjects %s args %s kw_args %s" % (type(p_obj).__name__,args, kwargs))
+    def getObjects(self, p_obj, *args, defer_cols=[], order_by=None, **kwargs):
         
         @timeout(5.0)
         def execute_query():
@@ -111,73 +121,49 @@ class DB_ORM_Handler(object):
             rs = None
             error = False
             exception = None
-            
-            # force random failure
-            fail = random.randint(0,100)
-            if fail==0:
-                print("getObjects ********** ARTIFICIAL FAILURE ************** ")
-                time.sleep(10)
-            
-            for retry in range(0,10):
-                print("DB_ORM_Handler:getObjects retry %d" % retry)
+
+            for retry in range(0, 10):
                 try:
-                    if len(kwargs)>0 or len(args)>0:
-                        if len(defer_cols)>0:
-                            defer_lst = list([defer(x) for x in defer_cols])
-                            if len(kwargs)>0:
-                                print("DB_ORM_Handler:getObjects defered kwargs %s" % kwargs)
-                                rs = sess.query(p_obj).filter_by(**kwargs).options(*defer_lst).all()
-                            else:
-                                print("DB_ORM_Handler:getObjects defered args %s" % args)
-                                rs = sess.query(p_obj).filter(*args).options(*defer_lst).all()
-                        else:
-                            if len(kwargs)>0:
-                                print("DB_ORM_Handler:getObjects kwargs %s" % kwargs)
+                    query = sess.query(p_obj)
 
-                                query = Query([p_obj]).filter_by(**kwargs)
-                                rs = query.with_session(sess).all()
+                    # Apply filters if any
+                    if len(kwargs) > 0 or len(args) > 0:
+                        query = query.filter_by(**kwargs) if len(kwargs) > 0 else query.filter(*args)
 
-                                #rs = sess.query(p_obj).filter_by(**kwargs).all()
-                                #print("DB_ORM_Handler:getObjects kwargs rs" % rs)
+                    # Apply deferred columns if any
+                    if len(defer_cols) > 0:
+                        defer_lst = list([defer(x) for x in defer_cols])
+                        query = query.options(*defer_lst)
 
-                            else:
-                                print("DB_ORM_Handler:getObjects args %s" % args)
-                                rs = sess.query(p_obj).filter(*args).all()
-                    else:
-                        if len(defer_cols)>0:
-                            print("DB_ORM_Handler:getObjects noargs %s" % defer_lst)
-                            defer_lst = list([defer(x) for x in defer_cols])
-                            rs = sess.query(p_obj).options(*defer_lst).all()
-                        else:
-                            print("DB_ORM_Handler:getObjects all")
-                            rs = sess.query(p_obj).all()
+                    # Apply order_by if provided
+                    if order_by:
+                        query = query.order_by(*order_by)
 
+                    rs = query.all()
                     error = False
 
-                    #print("DB_ORM_Handler:getObjects rs %s" % rs)
                 except Exception as e:
-                    print("DatabaseError:",e)
                     error = True
                     exception = e
                     time.sleep(5)
                 finally:
-                    if len(defer_cols)==0:
-                        self.session.remove()
-                        self.session.close()
+                    self.session.remove()
+                    self.session.close()
 
-                break
+                if not error:
+                    break
 
             if error:
                 raise exception
 
-            print("DB_ORM_Handler:getObjects return rs %s" % rs)
             return rs
 
         try:
             return execute_query()
         except Exception as e:
-            print("***** TIMEOUT *****",e)
+            print("***** TIMEOUT *****", e)
             return None
+
         
     def refreshObject(self, p_obj):
         sess = self.session()
@@ -213,30 +199,53 @@ class DB_ORM_Handler(object):
 
         return rs
 
-    def saveObject(self, p_obj, get_obj_attr: Optional[bool] = False, get_obj_attr_name: Optional[bool] = "id"):
-        print("DB_ORM_Handler:saveObject %s" % (type(p_obj).__name__))
+    def saveObject(self, p_obj: Optional[Type] = None, p_objs: Optional[list] = None, integrity_merge: Optional[bool] = True, get_obj_attr: Optional[bool] = False, get_obj_attr_name: Optional[bool] = "id"):
+        """
+        Almacena objetos en base de datos:
+         - p_obj: Opcional. Objeto a almacenar
+         - p_objs: Opcional. Lista de objetos a almacenar
+         - integrity_merge: Opcional. True si se desea upsert, False si no. Por defecto True.
+         
+        """
+        if p_obj is None and p_objs is None:
+            return False
+        error = None
         sess = self.session()
         try:
-            sess.add(p_obj)
-            e = None
-            done=False
-            for r in range(0,10):
+            if p_obj is not None:
+                sess.add(p_obj)
+            elif p_objs is not None:
+                sess.add_all(p_objs)
+            done = False
+            for _ in range(10):
                 try:
                     sess.commit()
-                    done=True
+                    done = True
                     break
+                except sal.exc.IntegrityError as dbapi:
+                    # Error de integridad
+                    sess.rollback()
+                    if not integrity_merge:
+                        raise
+                    print("Duplicate entry: Trying merge")
+                    if p_objs is not None:
+                        for obj in p_objs:
+                            sess.merge(obj)
+                    if p_obj is not None:
+                        sess.merge(p_obj)
+                    sess.commit()
+                    done = True
                 except Exception as e:
-                    print("retry commit",e)
+                    error = e
                     time.sleep(5)
+            
             if not done:
-                raise RuntimeError("could not save object to database:",e)
+                raise RuntimeError("No se pudo almacenar en DB: ", error)
 
         except Exception as e:
             raise e
         finally:
             self.session.remove()
-
-        print("DB_ORM_Handler:saveObject done %s" % (type(p_obj).__name__))
         if get_obj_attr:
             obj_id = getattr(p_obj, 'id', None)
             return obj_id

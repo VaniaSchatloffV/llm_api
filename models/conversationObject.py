@@ -8,7 +8,7 @@ Base = mapper_registry.generate_base()
 class ConversationObject(Base):
     __tablename__ = 'conversations'
     __attributes__ = [
-            'id', 'user_od', 'name', 'created_at', 'finished_at'
+            'id', 'user_id', 'name', 'created_at', 'finished_at'
         ]
     
     id                          = sal.Column('id', sal.BigInteger, primary_key=True, autoincrement=True)
