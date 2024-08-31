@@ -10,3 +10,5 @@ langchain==0.0.349
 langchain_core==0.0.13
 langchain_community==0.0.1
 faiss-cpu==1.8.0.post1
+SQLAlchemy==2.0.32
+PyMySQL==1.1.1

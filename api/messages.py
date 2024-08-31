@@ -18,7 +18,7 @@ class Conversation(BaseModel):
 
 @router.post("/sendMessage/")
 def send_prompt(message: Message):
-    return bedrock_controller.send_prompt(message.prompt, message.conversation_id, message.user_id)
+    return bedrock_controller.send_prompt_and_process(message.prompt, message.conversation_id, message.user_id)
 
 
 @router.get("/getConversations/")

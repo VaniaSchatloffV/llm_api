@@ -1,20 +1,25 @@
 import json
 from datetime import datetime
-from handlers.DBHandler import DBHandler
+from typing import Union
+from handlers.DBORMHandler import DB_ORM_Handler
+from models.conversationObject import ConversationObject
+from models.messageObject import MessagesObject
+from sqlalchemy import desc
 
+# Todo lo relacionado a conversaciones y mensajes
 
 def new_conversation(user_id: int):
     """
     Función para iniciar una conversación. Inserta una nueva conversación. Retorna el id de la conversación
     """
-    with DBHandler() as db:
-        insert_new_conversation = """
-            INSERT INTO conversations(user_id) VALUES (%s)
-        """
-        conversation_id = db.insert_get_id(insert_new_conversation, (user_id,))
+    with DB_ORM_Handler() as db:
+        Conversation = ConversationObject()
+        Conversation.user_id = user_id
+        db.createTable(Conversation)
+        conversation_id = db.saveObject(p_obj=Conversation, get_obj_attr=True, get_obj_attr_name="id")
         return conversation_id
 
-def insert_message(conversation_id: int, role: str, content):
+def insert_message(conversation_id: int, role: str, content: Union[list, str], type: str = "conversation"):
     """
     Función para almacenar mensaje.
     conversation_id: id de la conversación.
@@ -25,27 +30,96 @@ def insert_message(conversation_id: int, role: str, content):
         "role": role,
         "content": content
     }
-    message_json = json.dumps(message)
-    insert_new_message = """
-        INSERT INTO messages (conversation_id, message)
-        VALUES (%s, %s)
-    """
-    with DBHandler() as db:
-        db.execute(insert_new_message, (conversation_id, message_json))
+    Message = MessagesObject()
+    Message.conversation_id = conversation_id
+    Message.message = json.dumps(message)
+    Message.type = type
+    with DB_ORM_Handler() as db:
+        db.createTable(Message)
+        db.saveObject(Message)
 
 def get_messages(conversation_id: int):
     """
     Obtiene los mensajes enviados en una conversación
     """
-    get_messages_query = """
-        SELECT message
-        FROM messages
-        WHERE conversation_id = %s
-        ORDER BY id
-    """
-    with DBHandler() as db:
-        messages = db.select(get_messages_query, (conversation_id,))
-        if messages is None:
+    with DB_ORM_Handler() as db:
+        messages = db.getObjects(
+            MessagesObject, 
+            MessagesObject.conversation_id == conversation_id,
+            MessagesObject.type.in_(['conversation', 'option', 'file']),
+            defer_cols=[],
+            order_by=[MessagesObject.id],
+            columns = [MessagesObject.message]
+        )
+        if not messages:
             return []
-        messages = [item.get("message") for item in messages]
-        return messages
+        return [json.loads(i.get("message")) for i in messages]
+
+def get_conversations(user_id: int):
+    """
+    Obtiene las conversaciones de un usuario ordenadas por id en orden descendente
+    """
+    with DB_ORM_Handler() as db:
+        conversations = db.getObjects(
+            ConversationObject,
+            ConversationObject.user_id == user_id,
+            defer_cols=[],
+            order_by=[ConversationObject.id.desc()],
+            columns = [ConversationObject.id, ConversationObject.name, ConversationObject.created_at]
+        )
+        if not conversations:
+            return []
+        return conversations
+
+def get_messages_for_llm(conversation_id: int):
+    """
+    Obtiene los mensajes enviados en una conversación que sean de tipo 'conversation' o 'query'
+    """
+    with DB_ORM_Handler() as db:
+        messages = db.getObjects(
+            MessagesObject,
+            MessagesObject.conversation_id == conversation_id,
+            MessagesObject.type.in_(['conversation', 'query']),
+            defer_cols=[],
+            order_by=[MessagesObject.id],
+            columns=[MessagesObject.message]
+        )
+        if not messages:
+            return []
+        return [json.loads(message.get("message")) for message in messages]
+
+def get_last_query(conversation_id: int):
+    """
+    Obtiene la última query de la conversación
+    """
+    with DB_ORM_Handler() as db:
+        messages = db.getObjects(
+            MessagesObject, 
+            MessagesObject.conversation_id == conversation_id,
+            MessagesObject.type == 'query',
+            defer_cols=[],
+            order_by=[desc(MessagesObject.id)],
+            columns=[MessagesObject.message]
+        )
+        if messages:
+            message = messages[0]
+            return json.loads(message.get("message")).get("content")
+        return []
+
+def get_option_messages(conversation_id: int):
+    """
+    Obtiene el último mensaje de tipo 'option' enviado en una conversación
+    """
+    with DB_ORM_Handler() as db:
+        messages = db.getObjects(
+            MessagesObject,
+            MessagesObject.conversation_id == conversation_id,
+            MessagesObject.type == 'option',
+            defer_cols=[],
+            order_by=[desc(MessagesObject.id)],
+            columns=[MessagesObject.message],
+            limit=1
+        )
+        if not messages:
+            return []
+        return json.loads(messages[0].get("message"))
