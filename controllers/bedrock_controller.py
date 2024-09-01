@@ -12,6 +12,8 @@ from langchain_community.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationChain
 from langchain.chains import LLMChain
+from langchain_core.output_parsers import StrOutputParser
+
 
 
 from botocore.exceptions import ClientError
@@ -64,30 +66,32 @@ my_data = [
 
 
 def invoke_llm(messages: list, temperature=0, top_p=0.1):
-    memory = ConversationBufferMemory(memory_key="chat_history")
+    #memory = ConversationBufferMemory(memory_key="chat_history")
     print(messages)
     question = messages[len(messages)-1].get("content")
-    
+    print("hola")
     bedrock = boto3.client(service_name="bedrock-runtime", region_name="us-east-1")
-
+    print("hola2")
     model = Bedrock(model_id="anthropic.claude-v2:1", client=bedrock) # Revisar modelos
-
+    print("hola3")
     bedrock_embeddings = BedrockEmbeddings(model_id="amazon.titan-embed-text-v1", client=bedrock) # Revisar modelos
-
+    print("hola4")
     # create vector store
     vector_store = FAISS.from_texts(my_data, bedrock_embeddings)
-
+    print("hola5")
     # create retriever
     retriever = vector_store.as_retriever(
         search_kwargs={"k": 3}  # maybe we can add a score threshold here?
     )
-
+    
+    print("hola6")
     results = retriever.get_relevant_documents(question)
-
+    print("hola7")
     results_string = []
     for result in results:
         results_string.append(result.page_content)
-    
+    print(results_string)
+    print("hola8")
     # build template:
     template = ChatPromptTemplate.from_messages(
         [
@@ -106,32 +110,45 @@ def invoke_llm(messages: list, temperature=0, top_p=0.1):
             En caso de que sea una conversacion, respondes indicando qué eres y cuál es tu función, la cual es 'Soy un asistente virtual que tiene como fin recibir preguntas referentes a la informacion de la base de datos de FALP, por favor formula tu pregunta', en caso de que la conversacion siga
             debes seguir respondiendo con mensajes que orienten al usuario a hacer una pregunta en la base de datos.
 
-    
+
             """
         ),
         (
             "human",
             
             """
-            
+            Estos son mensajes anteriores de esta misma conversacion: 
+            {messages}
+            Y este es mi mensaje nuevo al que debes responder:
             {input}
             """
         ),
     ]
     )
+    print("hola9")
+    print(type(messages))
+    print(type(messages[0]))
+    print(type(results_string))
+    msg = {}
+    for i in range(len(messages)):
+        msg = messages[i]
+    print(msg)
     #print(memory)
+    results_string_combined = "\n".join(results_string)
+
     retrieval_chain = (
-    {"context": retriever, "input": RunnablePassthrough()}
+    {"context": retriever, "messages": RunnablePassthrough, "input": RunnablePassthrough()}
     | template
     | model
     )
-
-     
+    
+    print("hola10")
     #messages= template.format_messages(context = results_string)
     #chain = LLMChain(llm=model, prompt=messages, memory=memory)
     
 
     response = retrieval_chain.invoke(question) #+ "\n context:" + str(results_string)})
+    print("hola11")
     return response 
 
 
@@ -189,12 +206,15 @@ def send_prompt_and_process(prompt: str, conversation_id: int, user_id: int):
     
     # Se obtienen mensajes anteriores para la llm
     messages = conversation_helper.get_messages_for_llm(conversation_id)
-
-    response = send_prompt(messages)
-    resp = response[0].get("text")
-
+    print("hola estoy aqui", messages)
+   
+    print("entre al try")
+    resp = send_prompt(messages)
+    print(resp)
     conversation_helper.insert_message(conversation_id, "assistant", resp)
     return {"response": resp, "conversation_id": conversation_id}
+
+
 
 def send_prompt_and_process_vania(prompt: str, conversation_id: int, user_id: int):
     # si no existe la conversación, se crea y retorna nuevo id
