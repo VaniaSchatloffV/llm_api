@@ -105,14 +105,11 @@ def send_prompt_and_process(prompt: str, conversation_id: int, user_id: int):
     if conversation_id == 0:
         conversation_id = conversation_helper.new_conversation(user_id)
 
+    last_option_message = conversation_helper.get_option_messages(conversation_id)
     # Si el prompt es un tipo de archivo
-    if prompt in file_helper.OPTIONS:
+    if prompt in file_helper.OPTIONS and last_option_message and last_option_message.get("role") == "assistant":
         # se revisa si el ultimo mensaje fue pidiendo el tipo de archivo
-        last_message = conversation_helper.get_option_messages(conversation_id)
-        if last_message and last_message.get("role") == "assistant":
-            conversation_helper.insert_message(conversation_id, "user", prompt, "option")
-        else:
-            conversation_helper.insert_message(conversation_id, "user", prompt)
+        conversation_helper.insert_message(conversation_id, "user", prompt, "option")
     else:
         conversation_helper.insert_message(conversation_id, "user", prompt)
     
@@ -120,16 +117,15 @@ def send_prompt_and_process(prompt: str, conversation_id: int, user_id: int):
     messages = conversation_helper.get_messages_for_llm(conversation_id)
 
     # Si el mensaje es para definir el archivo de descarga
-    if prompt in file_helper.OPTIONS:
+    if prompt in file_helper.OPTIONS and last_option_message and last_option_message.get("role") == "assistant":
         try:
-            if last_message.get("role") == "assistant":
-                query = conversation_helper.get_last_query(conversation_id)
-                with DB_ORM_Handler() as db:
-                    data = db.query(query, return_data=True)
-                file_id = file_helper.to_file(prompt, data)
-                resp = {"text": "El archivo ya está listo", "file_id": file_id, "file_type": prompt}
-                conversation_helper.insert_message(conversation_id, "assistant", resp, type="file")
-                return {"response": resp, "conversation_id": conversation_id}
+            query = conversation_helper.get_last_query(conversation_id)
+            with DB_ORM_Handler() as db:
+                data = db.query(query, return_data=True)
+            file_id = file_helper.to_file(prompt, data)
+            resp = {"text": "El archivo ya está listo", "file_id": file_id, "file_type": prompt}
+            conversation_helper.insert_message(conversation_id, "assistant", resp, type="file")
+            return {"response": resp, "conversation_id": conversation_id}
         except Exception as e:
             # AQUI AGREGAR CUANDO LA COSA FALLA Y PREGUNTAR POR QUÉ
             pass
