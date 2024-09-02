@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from langchain_community.llms import Bedrock
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
 from langchain_community.embeddings import BedrockEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -67,31 +67,22 @@ my_data = [
 
 def invoke_llm(messages: list, temperature=0, top_p=0.1):
     #memory = ConversationBufferMemory(memory_key="chat_history")
-    print(messages)
     question = messages[len(messages)-1].get("content")
-    print("hola")
     bedrock = boto3.client(service_name="bedrock-runtime", region_name="us-east-1")
-    print("hola2")
     model = Bedrock(model_id="anthropic.claude-v2:1", client=bedrock) # Revisar modelos
-    print("hola3")
     bedrock_embeddings = BedrockEmbeddings(model_id="amazon.titan-embed-text-v1", client=bedrock) # Revisar modelos
-    print("hola4")
     # create vector store
     vector_store = FAISS.from_texts(my_data, bedrock_embeddings)
-    print("hola5")
     # create retriever
     retriever = vector_store.as_retriever(
         search_kwargs={"k": 3}  # maybe we can add a score threshold here?
     )
     
-    print("hola6")
     results = retriever.get_relevant_documents(question)
-    print("hola7")
     results_string = []
     for result in results:
         results_string.append(result.page_content)
-    print(results_string)
-    print("hola8")
+    
     # build template:
     template = ChatPromptTemplate.from_messages(
         [
@@ -131,13 +122,12 @@ def invoke_llm(messages: list, temperature=0, top_p=0.1):
     print(type(results_string))
     msg = {}
     for i in range(len(messages)):
-        msg = messages[i]
-    print(msg)
+        msg["Mensaje " + str(i+1)] = messages[i].get("content")
     #print(memory)
     results_string_combined = "\n".join(results_string)
 
     retrieval_chain = (
-    {"context": retriever, "messages": RunnablePassthrough, "input": RunnablePassthrough()}
+    {"context": retriever,"messages": msg, "input": RunnablePassthrough()}
     | template
     | model
     )
