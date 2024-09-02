@@ -116,10 +116,6 @@ def invoke_llm(messages: list, temperature=0, top_p=0.1):
         ),
     ]
     )
-    print("hola9")
-    print(type(messages))
-    print(type(messages[0]))
-    print(type(results_string))
     msg = {}
     for i in range(len(messages)):
         msg["Mensaje " + str(i+1)] = messages[i].get("content")
@@ -131,14 +127,11 @@ def invoke_llm(messages: list, temperature=0, top_p=0.1):
     | template
     | model
     )
-    
-    print("hola10")
     #messages= template.format_messages(context = results_string)
     #chain = LLMChain(llm=model, prompt=messages, memory=memory)
     
 
     response = retrieval_chain.invoke(question) #+ "\n context:" + str(results_string)})
-    print("hola11")
     return response 
 
 
