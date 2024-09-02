@@ -4,16 +4,17 @@ import json
 import numpy as np
 import pandas as pd
 
-from langchain_community.llms import Bedrock
+from langchain_aws import BedrockLLM, BedrockEmbeddings, ChatBedrock
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
-from langchain_community.embeddings import BedrockEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationChain
 from langchain.chains import LLMChain
 from langchain_core.output_parsers import StrOutputParser
-
+from langchain.chains import create_retrieval_chain, create_history_aware_retriever
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_core.messages import AIMessage, HumanMessage
 
 
 from botocore.exceptions import ClientError
@@ -65,11 +66,17 @@ my_data = [
     """]
 
 
-def invoke_llm(messages: list, temperature=0, top_p=0.1):
-    #memory = ConversationBufferMemory(memory_key="chat_history")
-    question = messages[len(messages)-1].get("content")
-    bedrock = boto3.client(service_name="bedrock-runtime", region_name="us-east-1")
-    model = Bedrock(model_id="anthropic.claude-v2:1", client=bedrock) # Revisar modelos
+def invoke_llm(question ,messages: list, temperature=0, top_p=0.1):
+    bedrock = boto3.client(service_name="bedrock-runtime", region_name=settings.aws_default_region)
+
+    # model = BedrockLLM(
+    #     model_id="anthropic.claude-v2:1"
+    # )
+
+    model = ChatBedrock(
+        model_id="anthropic.claude-3-sonnet-20240229-v1:0"
+    )
+
     bedrock_embeddings = BedrockEmbeddings(model_id="amazon.titan-embed-text-v1", client=bedrock) # Revisar modelos
     # create vector store
     vector_store = FAISS.from_texts(my_data, bedrock_embeddings)
@@ -78,66 +85,53 @@ def invoke_llm(messages: list, temperature=0, top_p=0.1):
         search_kwargs={"k": 3}  # maybe we can add a score threshold here?
     )
     
-    results = retriever.get_relevant_documents(question)
+    results = retriever.invoke(question)
     results_string = []
     for result in results:
         results_string.append(result.page_content)
     
+    system_prompt = """
+         Las siguientes son descripciones de una tabla y sus campos en una base de datos.
+        {context}
+        Con esta información, necesito que traduzcas consultas en lenguaje natural a consultas SQL.
+        No respondas con nada más que el SQL generado, un ejemplo de SQL es: "SELECT * FROM pacientes;", fijate como NO hay '\n' en la respuesta. Tampoco agregues cordialidades o explicaciones, responde solo con SQL.
+        Si se te pide informacion que no esta en la tabla no la agregues a la consulta, responde lo que puedas, pero no des explicaciones, responde solo con SQL.
+        Si se te pide modificar la base de datos, indica que no lo tienes permitido, este es el único caso donde puedes no usar SQL.
+
+        En caso de que sea una conversacion, respondes indicando qué eres y cuál es tu función, la cual es 'Soy un asistente virtual que tiene como fin recibir preguntas referentes a la informacion de la base de datos de FALP, por favor formula tu pregunta', en caso de que la conversacion siga
+        debes seguir respondiendo con mensajes que orienten al usuario a hacer una pregunta en la base de datos.
+    """
+
     # build template:
-    template = ChatPromptTemplate.from_messages(
+    prompt = ChatPromptTemplate.from_messages(
         [
         (
 
-            "assistant",
-            #"""Reconoce si lo que se te pregunta es una pregunta o simplemente una conversacion. si es una pregunta
-            """
-            Las siguientes son descripciones de una tabla y sus campos en una base de datos.
-            {context}
-            Con esta información, necesito que traduzcas consultas en lenguaje natural a consultas SQL.
-            No respondas con nada más que el SQL generado, un ejemplo de SQL es: "SELECT * FROM pacientes;", fijate como NO hay '\n' en la respuesta. Tampoco agregues cordialidades o explicaciones, responde solo con SQL.
-            Si se te pide informacion que no esta en la tabla no la agregues a la consulta, responde lo que puedas, pero no des explicaciones, responde solo con SQL.
-            Si se te pide modificar la base de datos, indica que no lo tienes permitido, este es el único caso donde puedes no usar SQL.
-
-            En caso de que sea una conversacion, respondes indicando qué eres y cuál es tu función, la cual es 'Soy un asistente virtual que tiene como fin recibir preguntas referentes a la informacion de la base de datos de FALP, por favor formula tu pregunta', en caso de que la conversacion siga
-            debes seguir respondiendo con mensajes que orienten al usuario a hacer una pregunta en la base de datos.
-
-
-            """
+            "system", system_prompt
         ),
+        MessagesPlaceholder("chat_history"),
         (
-            "human",
-            
-            """
-            Estos son mensajes anteriores de esta misma conversacion: 
-            {messages}
-            Y este es mi mensaje nuevo al que debes responder:
-            {input}
-            """
+            "human", "{input}"
         ),
     ]
     )
-    msg = {}
-    for i in range(len(messages)):
-        msg["Mensaje " + str(i+1)] = messages[i].get("content")
-    #print(memory)
-    results_string_combined = "\n".join(results_string)
+    history_aware_retriever = create_history_aware_retriever(model, retriever, prompt)
+    question_answer_chain = create_stuff_documents_chain(model, prompt)
+    rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
     retrieval_chain = (
-    {"context": retriever,"messages": msg, "input": RunnablePassthrough()}
-    | template
+    {"context": retriever, "input": RunnablePassthrough()}
+    | prompt
     | model
     )
-    #messages= template.format_messages(context = results_string)
-    #chain = LLMChain(llm=model, prompt=messages, memory=memory)
-    
-
-    response = retrieval_chain.invoke(question) #+ "\n context:" + str(results_string)})
+    messages.pop()
+    response = rag_chain.invoke({"context": retriever, "input": question, "chat_history": messages})
     return response 
 
 
 
-def send_prompt(messages: list):
-    response = invoke_llm(messages=messages)
+def send_prompt(question, messages: list):
+    response = invoke_llm(question=question, messages=messages)
     return response
 
 
@@ -189,13 +183,18 @@ def send_prompt_and_process(prompt: str, conversation_id: int, user_id: int):
     
     # Se obtienen mensajes anteriores para la llm
     messages = conversation_helper.get_messages_for_llm(conversation_id)
-    print("hola estoy aqui", messages)
-   
-    print("entre al try")
-    resp = send_prompt(messages)
-    print(resp)
-    conversation_helper.insert_message(conversation_id, "assistant", resp)
-    return {"response": resp, "conversation_id": conversation_id}
+    messages_for_llm = []
+    for mess in messages:
+        if mess.get("role") == "user":
+            content = mess.get("content")
+            messages_for_llm.append(HumanMessage(content=content))
+        elif mess.get("role") == "assistant":
+            content = mess.get("content")
+            messages_for_llm.append(AIMessage(content=content))
+    
+    resp = send_prompt(prompt , messages_for_llm)
+    conversation_helper.insert_message(conversation_id, "assistant", resp.get("answer"))
+    return {"response": resp.get("answer"), "conversation_id": conversation_id}
 
 
 
