@@ -62,7 +62,7 @@ def invoke_llm(messages: list, system_prompt: str, temperature=0.1, top_p=0.9):
 def send_prompt(messages: list):
     system_prompt = """ Las siguientes son descripciones de una tabla y sus campos en una base de datos:
 
-                create table messages(
+                create table llm_project_schema.messages(
                     id SERIAL,
                     conversation_id INT,
                     message JSON,
@@ -70,23 +70,13 @@ def send_prompt(messages: list):
                     PRIMARY KEY(id),
                     FOREIGN KEY (conversation_id) REFERENCES conversations(id));
 
-                create table conversations(
+                create table llm_project_schema.conversations(
                     id SERIAL,
                     user_id INT,
                     name varchar(256),
                     created_at TIMESTAMP default NOW(),
                     finished_at TIMESTAMP,
                     PRIMARY KEY (id));
-                
-                CREATE TABLE users (
-                    id SERIAL,
-                    name VARCHAR(128),
-                    lastname VARCHAR(128),
-                    email VARCHAR(256),
-                    password VARCHAR(512),
-                    role_id INT,
-                    PRIMARY KEY (id)
-                );
 
                 Con esta información, necesito que traduzcas consultas en lenguaje natural a consultas SQL.
 
@@ -124,7 +114,7 @@ def send_prompt_and_process(prompt: str, conversation_id: int, user_id: int):
                 data = db.query(query, return_data=True)
             file_id = file_helper.to_file(prompt, data)
             resp = {"text": "El archivo ya está listo", "file_id": file_id, "file_type": prompt}
-            conversation_helper.insert_message(conversation_id, "assistant", resp, type="file")
+            conversation_helper.insert_message(conversation_id, "assistant", resp, "file")
             return {"response": resp, "conversation_id": conversation_id}
         except Exception as e:
             # AQUI AGREGAR CUANDO LA COSA FALLA Y PREGUNTAR POR QUÉ

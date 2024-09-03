@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     postgres_port : int
     postgres_db : str
     temp_files : str
+    postgres_schema: str
     
     class Config:
         env_file = ".env"
