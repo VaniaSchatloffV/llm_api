@@ -91,10 +91,13 @@ def invoke_llm(question ,messages: list, temperature=0, top_p=0.1):
         results_string.append(result.page_content)
     
     system_prompt = """
-         Las siguientes son descripciones de una tabla y sus campos en una base de datos.
+        Las siguientes son descripciones de una tabla y sus campos en una base de datos:
         {context}
+        Estos campos pueden contener valores diferentes a los dados, es importante que uses la información entregada por el usuario en el formato dado.
+        Estas son los únicos campos de las tablas. Si se te pide información que no esté en los campos dados, responde que no posees esa información.
+
         Con esta información, necesito que traduzcas consultas en lenguaje natural a consultas SQL.
-        No respondas con nada más que el SQL generado, un ejemplo de SQL es: "SELECT * FROM pacientes;", fijate como NO hay '\n' en la respuesta. Tampoco agregues cordialidades o explicaciones, responde solo con SQL.
+        No respondas con nada más que el SQL generado, un ejemplo de SQL es: "SELECT * FROM pacientes;". Tampoco agregues cordialidades o explicaciones, responde solo con SQL.
         Si se te pide informacion que no esta en la tabla no la agregues a la consulta, responde lo que puedas, pero no des explicaciones, responde solo con SQL.
         Si se te pide modificar la base de datos, indica que no lo tienes permitido, este es el único caso donde puedes no usar SQL.
 
@@ -106,7 +109,6 @@ def invoke_llm(question ,messages: list, temperature=0, top_p=0.1):
     prompt = ChatPromptTemplate.from_messages(
         [
         (
-
             "system", system_prompt
         ),
         MessagesPlaceholder("chat_history"),
@@ -119,11 +121,6 @@ def invoke_llm(question ,messages: list, temperature=0, top_p=0.1):
     question_answer_chain = create_stuff_documents_chain(model, prompt)
     rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
-    retrieval_chain = (
-    {"context": retriever, "input": RunnablePassthrough()}
-    | prompt
-    | model
-    )
     messages.pop()
     response = rag_chain.invoke({"context": retriever, "input": question, "chat_history": messages})
     return response 
@@ -233,11 +230,21 @@ def send_prompt_and_process_vania(prompt: str, conversation_id: int, user_id: in
             pass
     response = send_prompt(messages)
     resp = response[0].get("text")
-    if "SELECT" in resp:
-        query = resp
-        query = query.split("SELECT")[1]
-        query = "SELECT " + query.split(";")[0]
-        conversation_helper.insert_message(conversation_id, "assistant", query, "query")
+    #AGREGAR PARSER
+
+    response_SQL_NL = recognize_SQL_LLM(resp)
+    if response_SQL_NL == "SQL": 
+        conversation_helper.insert_message(conversation_id, "assistant", resp, "query")
+        with DB_ORM_Handler() as db:
+            data = db.query(resp, return_data=True)
+
+            #REVISAR SI DATA ES SUFICIENTEMENTE CHICO PARA SER RECIBIDO POR PROMPT 
+            #INVESTIGAR SI EL OUTPUT TOKENS DEL JC invoca a la llm
+            #else REVISAR API AWS BEDROCK
+
+            #SI SE PUEDE, ENTRA A LLM A TRADUCIRLA
+            #ELIF SE VA A LA LOGICA DE EN Q FORMATO ---------
+
         resp = {"text": "¿En qué formato desea recibir la información?"}
         resp["options"] = file_helper.OPTIONS
         conversation_helper.insert_message(conversation_id, "assistant", resp, type="option")
@@ -246,3 +253,37 @@ def send_prompt_and_process_vania(prompt: str, conversation_id: int, user_id: in
     conversation_helper.insert_message(conversation_id, "assistant", resp)
     return {"response": resp, "conversation_id": conversation_id}
 
+def recognize_SQL_LLM(question, temperature=0, top_p=0.1):
+
+    model = ChatBedrock(
+        model_id="anthropic.claude-3-5-sonnet-20240620-v1:0"
+    )
+
+    system_prompt = """
+Analiza el siguiente mensaje y determina si es completamente código SQL o si contiene lenguaje natural.
+
+Responde 'SQL' solo si todo el mensaje es sintaxis SQL válida, sin ninguna palabra o frase que no sea parte del código SQL.
+Responde 'NL' si el mensaje contiene cualquier palabra, frase, o parte en lenguaje natural que no sea sintaxis SQL, incluso si hay segmentos de SQL presentes.
+Solo clasifica el mensaje.
+    """
+
+    # build template:
+    prompt = ChatPromptTemplate.from_messages(
+        [
+        (
+            "system", system_prompt
+        ),
+        (
+            "human", "{input}"
+        ),
+    ]
+    )
+
+    chain = (
+        prompt 
+        | model
+        | StrOutputParser()
+        )
+
+    response = chain.invoke({"input": question})
+    return response 
