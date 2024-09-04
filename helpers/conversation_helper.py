@@ -123,3 +123,12 @@ def get_option_messages(conversation_id: int):
         if not messages:
             return []
         return json.loads(messages[0].get("message"))
+
+def change_conversation_name(conversation_id: int, name: str):
+    with DB_ORM_Handler() as db:
+        rs = db.updateObjects(
+            ConversationObject,
+            ConversationObject.id == conversation_id,
+            name = name
+        )
+        return rs

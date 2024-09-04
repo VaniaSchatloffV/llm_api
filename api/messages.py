@@ -15,6 +15,10 @@ class Conversations(BaseModel):
 class Conversation(BaseModel):
     conversation_id: int
 
+class ConversationName(BaseModel):
+    conversation_id: int
+    name: str
+
 
 @router.post("/sendMessage/")
 def send_prompt(message: Message):
@@ -29,4 +33,8 @@ def get_conversation(conversation: Conversations):
 @router.get("/getConversationMessages/")
 def get_conversation(conversation: Conversation):
     return conversation_controller.get_conversation_messages(conversation.conversation_id)
+
+@router.post("/changeConversationName/")
+def change_conversation_name(conversation: ConversationName):
+    return conversation_controller.change_conversation_name(conversation.conversation_id, conversation.name)
 
