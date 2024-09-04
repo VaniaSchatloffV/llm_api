@@ -92,7 +92,7 @@ def invoke_llm(question ,messages: list, temperature=0, top_p=0.1):
         Estos campos pueden contener valores diferentes a los dados, es importante que uses la información entregada por el usuario en el formato dado.
         Estas son los únicos campos de las tablas. Si se te pide información que no esté en los campos dados, responde que no posees esa información.
 
-        Con esta información, necesito que traduzcas consultas en lenguaje natural a consultas SQL.
+        Con esta información, necesito que traduzcas consultas en lenguaje natural a consultas SQL, utilizando exclusivamente con sintaxis de PostgreSQL.
         No respondas con nada más que el SQL generado, un ejemplo de SQL es: "SELECT * FROM pacientes;". Tampoco agregues cordialidades o explicaciones, responde solo con SQL.
         Si se te pide informacion que no esta en la tabla no la agregues a la consulta, responde lo que puedas, pero no des explicaciones, responde solo con SQL.
         Si se te pide modificar la base de datos, indica que no lo tienes permitido, este es el único caso donde puedes no usar SQL.
@@ -285,6 +285,7 @@ Solo clasifica el mensaje.
     return response 
 
 def LLM_Fix_SQL(consulta, query, error):
+    #Actualmente se ha probado pocas veces, pero tiene un funcionamiento de PMV
     model = ChatBedrock(
         model_id="anthropic.claude-3-sonnet-20240229-v1:0"
     )
@@ -295,11 +296,14 @@ def LLM_Fix_SQL(consulta, query, error):
 
     La siguiente es información de tablas en una base de datos, las columnas descritas son las únicas columnas: 
     {tablas}
-    Además, recibirás una consulta hecha por un humano, SQL que intenta responderla y un error generado por esta consulta.
+    Además, recibirás una consulta hecha por un humano, el SQL que intenta responderla y un error generado por esta consulta.
 
-    Tu tarea es identificar por qué ocurre el error. Utilizar columnas no existentes toma precedencia ante otros errores.
+    Tu tarea es identificar por qué ocurre el error. Utilizar columnas no existentes toma precedencia ante otros errores. 
 
-    Se conciso en tu respuesta.
+    La respuesta que debes dar pueden ser de dos tipos: 
+    a) Un nuevo SQL que solucione el error y responda la pregunta. Si se requieren campos que no se encuentran en algunas de las tablas, considera que no se puede responder.  
+    b) En caso de que la pregunta no se pueda responder en su totalidad con la informacion que se te propicio, responde exclusivamente con un "Tu pregunta no puede ser respondida por falta de informacion en la base de datos 'indicar que es lo que falta'" 
+    Se conciso en tu respuesta, responda unicamente con lo que se te indico.
 """
 
     # build template:
@@ -328,4 +332,48 @@ def LLM_Fix_SQL(consulta, query, error):
         )
 
     response = chain.invoke({"consulta": consulta, "query": query, "error": error, "tablas":my_data})
+    return response 
+
+
+
+
+
+def LLM_Translate_Data_to_NL(Data, question, query):
+    #Actualmente se ha probado pocas veces, pero tiene un funcionamiento de PMV
+    model = ChatBedrock(
+        model_id="anthropic.claude-3-sonnet-20240229-v1:0"
+    )
+
+    system_prompt = """    
+    recibirás una pregunta cuya respuesta se obtuvo de una base de datos la cual es:{Data}. Asume que la pregunta esta respondida de manera correcta y tienes que responder con lo que tienes solamente.
+    la consulta que generó esta data es {query}
+    Tu tarea es entregar esta informacion en lenguaje natural.
+ 
+    Se concizo en tu respuesta, no respondas con mas informacion que el lenguaje natural que responda la pregunta. 
+
+    Omite la informacion de que es una lista o que la lista contiene diccionarios. 
+
+
+    
+"""
+
+    # build template:
+    prompt = ChatPromptTemplate.from_messages(
+        [
+        (
+            "system", system_prompt
+        ),
+        (
+            "human", "{question}"
+        ),
+        ]
+    )
+
+    chain = (
+        prompt 
+        | model
+        #| StrOutputParser()
+        )
+
+    response = chain.invoke({"Data": Data, "question": question, "query": query})
     return response 
