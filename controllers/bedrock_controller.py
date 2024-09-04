@@ -68,11 +68,7 @@ my_data = [
 
 def invoke_llm(question ,messages: list, temperature=0, top_p=0.1):
     bedrock = boto3.client(service_name="bedrock-runtime", region_name=settings.aws_default_region)
-
-    # model = BedrockLLM(
-    #     model_id="anthropic.claude-v2:1"
-    # )
-
+    
     model = ChatBedrock(
         model_id="anthropic.claude-3-sonnet-20240229-v1:0"
     )
@@ -253,7 +249,7 @@ def send_prompt_and_process_vania(prompt: str, conversation_id: int, user_id: in
     conversation_helper.insert_message(conversation_id, "assistant", resp)
     return {"response": resp, "conversation_id": conversation_id}
 
-def recognize_SQL_LLM(question, temperature=0, top_p=0.1):
+def LLM_recognize_SQL(question, temperature=0, top_p=0.1):
 
     model = ChatBedrock(
         model_id="anthropic.claude-3-5-sonnet-20240620-v1:0"
@@ -286,4 +282,50 @@ Solo clasifica el mensaje.
         )
 
     response = chain.invoke({"input": question})
+    return response 
+
+def LLM_Fix_SQL(consulta, query, error):
+    model = ChatBedrock(
+        model_id="anthropic.claude-3-sonnet-20240229-v1:0"
+    )
+
+    system_prompt = """    
+
+    
+
+    La siguiente es información de tablas en una base de datos, las columnas descritas son las únicas columnas: 
+    {tablas}
+    Además, recibirás una consulta hecha por un humano, SQL que intenta responderla y un error generado por esta consulta.
+
+    Tu tarea es identificar por qué ocurre el error. Utilizar columnas no existentes toma precedencia ante otros errores.
+
+    Se conciso en tu respuesta.
+"""
+
+    # build template:
+    prompt = ChatPromptTemplate.from_messages(
+        [
+        (
+            "system", system_prompt
+        ),
+        (
+            "human", """
+            Quiero responder la pregunta:
+            {consulta},
+            El SQL utilizado fue:
+            {query} y
+            El error es:
+            {error}
+            """
+        ),
+        ]
+    )
+
+    chain = (
+        prompt 
+        | model
+        #| StrOutputParser()
+        )
+
+    response = chain.invoke({"consulta": consulta, "query": query, "error": error, "tablas":my_data})
     return response 
