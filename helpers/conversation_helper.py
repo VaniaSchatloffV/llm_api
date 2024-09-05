@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import Union
+from typing import Optional, Union
 from handlers.DBORMHandler import DB_ORM_Handler
 from models.conversationObject import ConversationObject
 from models.messageObject import MessagesObject
@@ -19,6 +19,7 @@ def new_conversation(user_id: int):
         conversation_id = db.saveObject(p_obj=Conversation, get_obj_attr=True, get_obj_attr_name="id")
         return conversation_id
 
+
 def insert_message(conversation_id: int, role: str, content: Union[list, str], type: str = "conversation"):
     """
     Función para almacenar mensaje.
@@ -32,11 +33,12 @@ def insert_message(conversation_id: int, role: str, content: Union[list, str], t
     }
     Message = MessagesObject()
     Message.conversation_id = conversation_id
-    Message.message = json.dumps(message)
+    Message.message = message
     Message.type = type
     with DB_ORM_Handler() as db:
         db.createTable(Message)
         db.saveObject(Message)
+
 
 def get_messages(conversation_id: int):
     """
@@ -53,7 +55,8 @@ def get_messages(conversation_id: int):
         )
         if not messages:
             return []
-        return [json.loads(i.get("message")) for i in messages]
+        return [i.get("message") for i in messages]
+
 
 def get_conversations(user_id: int):
     """
@@ -71,6 +74,7 @@ def get_conversations(user_id: int):
             return []
         return conversations
 
+
 def get_messages_for_llm(conversation_id: int):
     """
     Obtiene los mensajes enviados en una conversación que sean de tipo 'conversation' o 'query'
@@ -86,7 +90,8 @@ def get_messages_for_llm(conversation_id: int):
         )
         if not messages:
             return []
-        return [json.loads(message.get("message")) for message in messages]
+        return [message.get("message") for message in messages]
+
 
 def get_last_query(conversation_id: int):
     """
@@ -103,8 +108,9 @@ def get_last_query(conversation_id: int):
         )
         if messages:
             message = messages[0]
-            return json.loads(message.get("message")).get("content")
+            return message.get("message").get("content")
         return []
+
 
 def get_option_messages(conversation_id: int):
     """
@@ -122,9 +128,15 @@ def get_option_messages(conversation_id: int):
         )
         if not messages:
             return []
-        return json.loads(messages[0].get("message"))
+        return messages[0].get("message")
+
 
 def change_conversation_name(conversation_id: int, name: str):
+    """
+    Cambia el nombre de una conversación
+    """
+    if name == "":
+        name = None
     with DB_ORM_Handler() as db:
         rs = db.updateObjects(
             ConversationObject,
@@ -132,3 +144,63 @@ def change_conversation_name(conversation_id: int, name: str):
             name = name
         )
         return rs
+
+
+def get_conversation_table(offset: Optional[int] = None, limit: Optional[int] = None, order_by: Optional[str] = None, order_way: Optional[str] = None):
+    if limit is None:
+        limit = 10
+    if offset is None:
+        offset = 0
+    order = [ConversationObject.id.desc()]
+    if order_by == "user_id":
+        if order_way == "asc":
+            order = [ConversationObject.user_id.asc()]
+        else:
+            order = [ConversationObject.user_id.desc()]
+    if order_by == "conversation_id":
+        if order_way == "asc":
+            order = [ConversationObject.id.asc()]
+        else:
+            order = [ConversationObject.id.desc()]
+    print(order_way)
+    conversations_table = []
+    with DB_ORM_Handler() as db:
+        conversations = db.getObjects(
+            ConversationObject,
+            columns = [ConversationObject.id, ConversationObject.user_id],
+            order_by=order,
+            limit = limit,
+            offset = offset
+        )
+        for conversation in conversations:
+            conversation_id = conversation.get("id")
+            user_id = conversation.get("user_id")
+            first_message = db.getObjects(
+                MessagesObject,
+                MessagesObject.conversation_id == conversation_id,
+                MessagesObject.type == "conversation",
+                order_by=[MessagesObject.created_at.asc()],
+                columns=[MessagesObject.message],
+                limit=1
+            )
+
+            query_message = db.getObjects(
+                MessagesObject,
+                MessagesObject.conversation_id == conversation_id,
+                MessagesObject.type == "query",
+                order_by=[MessagesObject.created_at.asc()],
+                columns=[MessagesObject.message],
+                limit=1
+            )
+            row = {}
+            row["Id conversación"] = conversation_id
+            row["Id usuario"] = user_id
+            row["Mensaje inicial"] = first_message[0].get("message").get("content") if len(first_message) != 0 else None
+            row["Consulta generada"] = query_message[0].get("message").get("content") if len(query_message) != 0 else None
+            conversations_table.append(row)
+        return conversations_table
+
+def count_conversations():
+    with DB_ORM_Handler() as db:
+        total_conversations = db.countObjects(ConversationObject)
+        return total_conversations
