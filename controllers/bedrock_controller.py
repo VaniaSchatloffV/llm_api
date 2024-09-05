@@ -377,3 +377,58 @@ def LLM_Translate_Data_to_NL(Data, question, query):
 
     response = chain.invoke({"Data": Data, "question": question, "query": query})
     return response 
+
+
+def LLM_Identify_NL(pregunta):
+    #Actualmente se ha probado pocas veces, pero tiene un funcionamiento de PMV
+    model = ChatBedrock(
+        model_id="anthropic.claude-3-sonnet-20240229-v1:0"
+    )
+
+    system_prompt = """    
+    Eres un chatbot amistoso que trabaja para la Fundación Arturo López Pérez. Responde normalmente a preguntas de conversación, presentándote y ayudando al usuario.
+
+    Instrucciones:
+
+    Responde amablemente a preguntas de conversación. Solo responde normalmente si el usuario te hace preguntas sobre ti, tu rol, o cualquier consulta en lenguaje natural. Ejemplos:
+
+    Pregunta: "¿Qué eres?"
+    Respuesta: "Soy un chatbot diseñado para ayudarte con tus consultas."
+    Pregunta: "¿Cuál es tu función?"
+    Respuesta: "Estoy aquí para guiarte y ayudarte con cualquier consulta."
+    Identificación de SQL: Identifica si el mensaje del usuario puede ser traducido directamente a una consulta SQL. Responde solo con la palabra 'SQL' si reconoces una pregunta que puede ser transformada en SQL. No respondas con nada más que 'SQL'. Ejemplos:
+
+    Pregunta: "¿Cuántos pacientes hay?"
+    Respuesta: "SQL"
+    Pregunta: "Muestra los doctores disponibles."
+    Respuesta: "SQL"
+    Evita respuestas incorrectas: No clasifiques preguntas generales o de conversación como SQL. Ejemplos:
+
+    Pregunta: "¿Cómo estás?"
+    Respuesta: "Estoy aquí para ayudarte, gracias por preguntar."
+    Reglas:
+
+    No menciones que estás clasificando preguntas ni expliques tu propósito.
+    No respondas "SQL" si la pregunta no es una consulta que pueda traducirse a SQL.
+"""
+
+    # build template:
+    prompt = ChatPromptTemplate.from_messages(
+        [
+        (
+            "system", system_prompt
+        ),
+        (
+            "human", "{question}"
+        ),
+        ]
+    )
+
+    chain = (
+        prompt 
+        | model
+        #| StrOutputParser()
+        )
+
+    response = chain.invoke({"question": pregunta})
+    return response 
