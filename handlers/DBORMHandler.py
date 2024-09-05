@@ -119,7 +119,7 @@ class DB_ORM_Handler(object):
             raise e
 
 
-    def getObjects(self, p_obj, *args, defer_cols=[], columns: Optional[list] = None, order_by: Optional[list] = None, limit: Optional[int] = None, **kwargs):
+    def getObjects(self, p_obj, *args, defer_cols=[], columns: Optional[list] = None, order_by: Optional[list] = None, limit: Optional[int] = None, offset: Optional[int] = None, **kwargs):
         
         sess = self.session()
         query = sess.query(*columns) if columns else sess.query(p_obj)
@@ -142,6 +142,9 @@ class DB_ORM_Handler(object):
         # Apply limit if specified
         if limit:
             query = query.limit(limit)
+        
+        if offset:
+            query = query.offset(offset)
 
         try:
             results = query.all()
@@ -258,3 +261,29 @@ class DB_ORM_Handler(object):
             self.session.remove()
 
         return True
+    
+    def countObjects(self, p_obj, *args, **kwargs):
+        """
+        Cuenta los registros en la tabla especificada, con filtros opcionales.
+        
+        :param p_obj: El modelo de la tabla (ORM class).
+        :param args: Filtros opcionales (e.g. p_obj.id == 5).
+        :param kwargs: Filtros adicionales como clave-valor.
+        :return: El número de registros.
+        """
+        sess = self.session()
+        try:
+            query = sess.query(func.count()).select_from(p_obj)
+            if args:
+                query = query.filter(*args)
+            if kwargs:
+                query = query.filter_by(**kwargs)
+
+            result = query.scalar()
+            return result
+
+        except Exception as e:
+            print("DatabaseError:", e)
+            raise e
+        finally:
+            self.session.remove()

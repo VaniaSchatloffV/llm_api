@@ -142,7 +142,7 @@ def send_prompt(question, messages: list):
 def send_prompt2(messages: list):
     system_prompt = """ Las siguientes son descripciones de una tabla y sus campos en una base de datos:
 
-                create table messages(
+                create table llm_project_schema.messages(
                     id SERIAL,
                     conversation_id INT,
                     message JSON,
@@ -150,23 +150,13 @@ def send_prompt2(messages: list):
                     PRIMARY KEY(id),
                     FOREIGN KEY (conversation_id) REFERENCES conversations(id));
 
-                create table conversations(
+                create table llm_project_schema.conversations(
                     id SERIAL,
                     user_id INT,
                     name varchar(256),
                     created_at TIMESTAMP default NOW(),
                     finished_at TIMESTAMP,
                     PRIMARY KEY (id));
-                
-                CREATE TABLE users (
-                    id SERIAL,
-                    name VARCHAR(128),
-                    lastname VARCHAR(128),
-                    email VARCHAR(256),
-                    password VARCHAR(512),
-                    role_id INT,
-                    PRIMARY KEY (id)
-                );
 
                 Con esta información, necesito que traduzcas consultas en lenguaje natural a consultas SQL.
 
@@ -199,66 +189,6 @@ def send_prompt_and_process(prompt: str, conversation_id: int, user_id: int):
     resp = send_prompt(prompt , messages_for_llm)
     conversation_helper.insert_message(conversation_id, "assistant", resp.get("answer"))
     return {"response": resp.get("answer"), "conversation_id": conversation_id}
-
-
-
-def send_prompt_and_process_vania(prompt: str, conversation_id: int, user_id: int):
-    # si no existe la conversación, se crea y retorna nuevo id
-    if conversation_id == 0:
-        conversation_id = conversation_helper.new_conversation(user_id)
-
-    # Si el prompt es un tipo de archivo
-    if prompt in file_helper.OPTIONS:
-        # se revisa si el ultimo mensaje fue pidiendo el tipo de archivo
-        last_message = conversation_helper.get_option_messages(conversation_id)
-        if last_message and last_message.get("role") == "assistant":
-            conversation_helper.insert_message(conversation_id, "user", prompt, "option")
-        else:
-            conversation_helper.insert_message(conversation_id, "user", prompt)
-    else:
-        conversation_helper.insert_message(conversation_id, "user", prompt)
-    
-    # Se obtienen mensajes anteriores para la llm
-    messages = conversation_helper.get_messages_for_llm(conversation_id)
-
-    # Si el mensaje es para definir el archivo de descarga
-    if prompt in file_helper.OPTIONS:
-        try:
-            if last_message.get("role") == "assistant":
-                query = conversation_helper.get_last_query(conversation_id)
-                with DB_ORM_Handler() as db:
-                    data = db.query(query, return_data=True)
-                file_id = file_helper.to_file(prompt, data)
-                resp = {"text": "El archivo ya está listo", "file_id": file_id, "file_type": prompt}
-                conversation_helper.insert_message(conversation_id, "assistant", resp, type="file")
-                return {"response": resp, "conversation_id": conversation_id}
-        except Exception as e:
-            # AQUI AGREGAR CUANDO LA COSA FALLA Y PREGUNTAR POR QUÉ
-            pass
-    response = send_prompt(messages)
-    resp = response[0].get("text")
-    #AGREGAR PARSER
-
-    response_SQL_NL = recognize_SQL_LLM(resp)
-    if response_SQL_NL == "SQL": 
-        conversation_helper.insert_message(conversation_id, "assistant", resp, "query")
-        with DB_ORM_Handler() as db:
-            data = db.query(resp, return_data=True)
-
-            #REVISAR SI DATA ES SUFICIENTEMENTE CHICO PARA SER RECIBIDO POR PROMPT 
-            #INVESTIGAR SI EL OUTPUT TOKENS DEL JC invoca a la llm
-            #else REVISAR API AWS BEDROCK
-
-            #SI SE PUEDE, ENTRA A LLM A TRADUCIRLA
-            #ELIF SE VA A LA LOGICA DE EN Q FORMATO ---------
-
-        resp = {"text": "¿En qué formato desea recibir la información?"}
-        resp["options"] = file_helper.OPTIONS
-        conversation_helper.insert_message(conversation_id, "assistant", resp, type="option")
-        return {"response": resp, "conversation_id": conversation_id}
-
-    conversation_helper.insert_message(conversation_id, "assistant", resp)
-    return {"response": resp, "conversation_id": conversation_id}
 
 def LLM_recognize_SQL(question, temperature=0, top_p=0.1):
 

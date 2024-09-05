@@ -8,13 +8,13 @@ class Settings(BaseSettings):
     aws_access_key_id : str
     aws_secret_access_key : str
     aws_default_region : str
-    database_url : str
     postgres_user : str
     postgres_password : str
     postgres_host : str
     postgres_port : int
     postgres_db : str
     temp_files : str
+    postgres_schema: str
     
     class Config:
         env_file = ".env"

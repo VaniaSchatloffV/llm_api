@@ -1,3 +1,7 @@
+from configs.config import get_settings
+
+settings = get_settings()
+
 import sqlalchemy as sal
 from sqlalchemy.orm import registry
 from sqlalchemy.sql import func
@@ -7,6 +11,7 @@ Base = mapper_registry.generate_base()
 
 class ConversationObject(Base):
     __tablename__ = 'conversations'
+    __table_args__ = {'schema': settings.postgres_schema} 
     __attributes__ = [
             'id', 'user_id', 'name', 'created_at', 'finished_at'
         ]
