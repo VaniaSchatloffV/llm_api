@@ -101,7 +101,7 @@ def get_last_query(conversation_id: int):
         messages = db.getObjects(
             MessagesObject, 
             MessagesObject.conversation_id == conversation_id,
-            MessagesObject.type == 'query',
+            MessagesObject.type.in_(['query_review', 'query']),
             defer_cols=[],
             order_by=[desc(MessagesObject.id)],
             columns=[MessagesObject.message]
