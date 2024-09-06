@@ -10,7 +10,7 @@ import random
 # Todo lo relacionado a archivos
 
 settings = get_settings()
-OPTIONS = ["csv", "xlsx"]
+OPTIONS = ["csv", "xlsx", "CSV", "XLSX"]
 
 def to_file(type: str, data: list):
     if type == "csv":
