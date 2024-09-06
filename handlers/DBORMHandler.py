@@ -238,6 +238,7 @@ class DB_ORM_Handler(object):
                     time.sleep(5)
             
             if not done:
+                sess.rollback()
                 raise RuntimeError("No se pudo almacenar en DB: ", error)
 
         except Exception as e:
