@@ -14,11 +14,6 @@ from helpers import conversation_helper, file_helper, llm_helper
 settings = get_settings()
 
 retry = 3
-URL = settings.host + ":" + str(settings.port)
-
-def send_prompt(question, messages: list):
-    response = llm_helper.invoke_llm(question=question, messages=messages)
-    return response
 
 def execute_query(query):
     try:
@@ -56,36 +51,26 @@ def send_prompt_and_process(prompt: str, conversation_id: int, user_id: int):
     messages = conversation_helper.get_messages_for_llm(conversation_id)
     messages_for_llm = llm_helper.format_llm_memory(messages)
 
-    print("pasó format llm memory linea 57", "\n")
 
     classifier = llm_helper.LLM_Identify_NL(prompt, messages)
-
-    print("pasó llm identify", classifier, "\n")
 
     if classifier != "SQL":
         conversation_helper.insert_message(conversation_id, "assistant", classifier)
         response_format["response"] = {"text": classifier}
-        print("Era SQL", response_format, "\n")
         return response_format
     
 
-    resp = send_prompt(prompt , messages_for_llm)
-    print("send_prompt", resp, "\n")
+    resp = llm_helper.invoke_llm(question=prompt, messages=messages)
     # Verificacion del mensaje
     verification = llm_helper.LLM_recognize_SQL(resp.get("answer"))
-    print("verification", verification, "\n")
     if verification == "NL":
         conversation_helper.insert_message(conversation_id, "assistant", resp.get("answer"))
-        print("verification es NL, mensaje insertado, returned", str({"response": resp.get("answer"), "conversation_id": conversation_id}), "\n")
         return {"response": resp.get("answer"), "conversation_id": conversation_id}
     elif verification == "SQL":
         # Ejecución de la consulta
-        print("Era SQL", "\n")
         query = resp.get("answer")
         conversation_helper.insert_message(conversation_id, "assistant", query, "query")
-        print("mensaje insertado linea 85", "\n")
         db_response = execute_query(query)
-        print("db_response", db_response, "\n")
         
         if db_response.get("error") is not None:
             success = False

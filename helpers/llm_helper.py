@@ -116,7 +116,8 @@ def LLM_Identify_NL(pregunta, messages):
         | model
         | StrOutputParser()
         )
-    messages.pop()
+    if len(messages) != 0:
+        messages.pop()
     response = chain.invoke({"question": pregunta, "chat_history": messages})
     return response 
 
@@ -171,8 +172,8 @@ def invoke_llm(question ,messages: list, temperature=0, top_p=0.1):
     history_aware_retriever = create_history_aware_retriever(model, retriever, prompt)
     question_answer_chain = create_stuff_documents_chain(model, prompt)
     rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
-
-    messages.pop()
+    if len(messages) != 0:
+        messages.pop()
     response = rag_chain.invoke({"context": retriever, "input": question, "chat_history": messages})
     return response
 
@@ -275,7 +276,7 @@ def LLM_Translate_Data_to_NL(Data, question, query):
     la consulta que generó esta data es {query}
     Tu tarea es entregar esta informacion en lenguaje natural.
  
-    Se concizo en tu respuesta, no respondas con mas informacion que el lenguaje natural que responda la pregunta. 
+    Se consiso en tu respuesta, no respondas con mas informacion que el lenguaje natural que responda la pregunta. 
 
     Omite la informacion de que es una lista o que la lista contiene diccionarios, omite mencionar el SQL al que respondes. 
 
