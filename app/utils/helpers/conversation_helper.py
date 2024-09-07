@@ -1,9 +1,8 @@
 import json
 from datetime import datetime
 from typing import Optional, Union
-from handlers.DBORMHandler import DB_ORM_Handler
-from models.conversationObject import ConversationObject
-from models.messageObject import MessagesObject
+from app.crud.DBORMHandler import DB_ORM_Handler
+from app.models.chat import ConversationObject, MessagesObject
 from sqlalchemy import desc
 
 # Todo lo relacionado a conversaciones y mensajes

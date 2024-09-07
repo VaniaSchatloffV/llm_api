@@ -1,4 +1,4 @@
-from configs.config import get_settings
+from app.dependencies import get_settings
 from fastapi import HTTPException
 from io import BytesIO
 from typing import Iterator

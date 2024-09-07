@@ -11,7 +11,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain.chains import create_retrieval_chain, create_history_aware_retriever
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.messages import AIMessage, HumanMessage
-from configs.config import get_settings
+from app.dependencies import get_settings
 
 settings = get_settings()
 URL = settings.host + ":" + str(settings.port)

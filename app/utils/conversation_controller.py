@@ -1,5 +1,5 @@
 from typing import Optional
-from helpers import conversation_helper
+from .helpers import conversation_helper
 
 def get_conversation(user_id: int):
     """

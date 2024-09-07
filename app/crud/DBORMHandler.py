@@ -1,5 +1,5 @@
 # DB_ORM_Handler
-from configs.config import get_settings
+from app.dependencies import get_settings
 
 import time
 from typing import Optional, Type

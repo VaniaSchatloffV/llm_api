@@ -1,15 +1,11 @@
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
-from pydantic import BaseModel
-from helpers import file_helper
+from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
+from app.utils.helpers import file_helper
 import os
-from io import BytesIO
+
+from app.schemas.files import File
 
 router = APIRouter()
-
-class File(BaseModel):
-    file_id: int
-
 
 @router.get("/download/csv")
 def download_csv(file: File):
