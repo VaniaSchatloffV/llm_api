@@ -4,8 +4,8 @@ import json
 import numpy as np
 import pandas as pd
 
-
 from botocore.exceptions import ClientError
+import tiktoken
 
 from configs.config import get_settings
 from handlers.DBORMHandler import DB_ORM_Handler
@@ -14,16 +14,6 @@ from helpers import conversation_helper, file_helper, llm_helper
 settings = get_settings()
 
 retry = 3
-URL = settings.host + ":" + str(settings.port)
-
-
-
-
-
-
-def send_prompt(question, messages: list):
-    response = llm_helper.invoke_llm(question=question, messages=messages)
-    return response
 
 def execute_query(query):
     try:
@@ -61,10 +51,8 @@ def send_prompt_and_process(prompt: str, conversation_id: int, user_id: int):
     messages = conversation_helper.get_messages_for_llm(conversation_id)
     messages_for_llm = llm_helper.format_llm_memory(messages)
 
-    
+
     classifier = llm_helper.LLM_Identify_NL(prompt, messages)
-
-
 
     if classifier != "SQL":
         conversation_helper.insert_message(conversation_id, "assistant", classifier)
@@ -72,7 +60,7 @@ def send_prompt_and_process(prompt: str, conversation_id: int, user_id: int):
         return response_format
     
 
-    resp = send_prompt(prompt , messages_for_llm)
+    resp = llm_helper.invoke_llm(question=prompt, messages=messages)
     # Verificacion del mensaje
     verification = llm_helper.LLM_recognize_SQL(resp.get("answer"))
     if verification == "NL":
@@ -99,13 +87,20 @@ def send_prompt_and_process(prompt: str, conversation_id: int, user_id: int):
                 return response_format
 
         data = db_response.get("data")
-        #REVISAR TOKENS DE DATOS
-        nl_complete_response = llm_helper.LLM_Translate_Data_to_NL(data, prompt, query) + " " + "¿En qué formato desea recibir la información?"
-        conversation_helper.insert_message(conversation_id, "assistant", nl_complete_response, "option")
-        response_format["response"] = {"text": nl_complete_response, "options": file_helper.OPTIONS}
+
+        # PARA REVISAR EL NUMERO DE TOKENS DE LA RESPUESTA
+        encoding = tiktoken.encoding_for_model("gpt-3.5")
+        tokens_used = encoding.encode(str(data))
+
+        option_msg = "¿En qué formato desea recibir la información?"
+
+        if len(tokens_used) < 500: #REVISAR cantidad Y VER SI LO LIMPIAMOS
+            nl_complete_response = llm_helper.LLM_Translate_Data_to_NL(data, prompt, query) + " " + option_msg 
+            response_format["response"] = {"text": nl_complete_response, "options": file_helper.OPTIONS}
+            conversation_helper.insert_message(conversation_id, "assistant", response_format.get("response"), "option")
+            
+        else:
+            response_format["response"] = {"text": option_msg, "options": file_helper.OPTIONS}
+            conversation_helper.insert_message(conversation_id, "assistant", response_format.get("response"), "option")
+        
         return response_format
-
-    
-
-
-
