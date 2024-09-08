@@ -52,7 +52,7 @@ def send_prompt_and_process(prompt: str, conversation_id: int, user_id: int):
     messages_for_llm = llm_helper.format_llm_memory(messages)
 
 
-    classifier = llm_helper.LLM_Identify_NL(prompt, messages)
+    classifier = llm_helper.LLM_Identify_NL(prompt, messages_for_llm)
 
     if classifier != "SQL":
         conversation_helper.insert_message(conversation_id, "assistant", classifier)

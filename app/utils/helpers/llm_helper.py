@@ -81,9 +81,9 @@ def LLM_recognize_SQL(question, temperature=0, top_p=0.1):
         Solo clasifica el mensaje.
     """
     return aws_bedrock.invoke_llm("{input}",
-                                            system_prompt,
-                                            parameters = {"input": question},
-                                            model = "anthropic.claude-3-5-sonnet-20240620-v1:0")
+                                    system_prompt,
+                                    parameters = {"input": question},
+                                    model = "anthropic.claude-3-5-sonnet-20240620-v1:0")
 
 
 def LLM_Fix_SQL(consulta, query, error):
@@ -107,9 +107,9 @@ def LLM_Fix_SQL(consulta, query, error):
         y el error es: {error}"""
 
     return aws_bedrock.invoke_llm(human_input,
-                                            system_prompt,
-                                            parameters = {"tablas" : my_data, "consulta": consulta, "query": query, "error": error},
-                                            model = "anthropic.claude-3-sonnet-20240229-v1:0")
+                                system_prompt,
+                                parameters = {"tablas" : my_data, "consulta": consulta, "query": query, "error": error},
+                                model = "anthropic.claude-3-sonnet-20240229-v1:0")
 
 
 def LLM_Translate_Data_to_NL(Data, question, query):
