@@ -7,9 +7,9 @@ import pandas as pd
 from botocore.exceptions import ClientError
 import tiktoken
 
-from configs.config import get_settings
-from handlers.DBORMHandler import DB_ORM_Handler
-from helpers import conversation_helper, file_helper, llm_helper
+from app.dependencies import get_settings
+from app.crud.DBORMHandler import DB_ORM_Handler
+from .helpers import conversation_helper, file_helper, llm_helper
 
 settings = get_settings()
 
@@ -52,7 +52,7 @@ def send_prompt_and_process(prompt: str, conversation_id: int, user_id: int):
     messages_for_llm = llm_helper.format_llm_memory(messages)
 
 
-    classifier = llm_helper.LLM_Identify_NL(prompt, messages)
+    classifier = llm_helper.LLM_Identify_NL(prompt, messages_for_llm)
 
     if classifier != "SQL":
         conversation_helper.insert_message(conversation_id, "assistant", classifier)
