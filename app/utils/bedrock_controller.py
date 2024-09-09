@@ -61,31 +61,24 @@ def send_prompt_and_process(prompt: str, conversation_id: int, user_id: int):
     
 
     resp = llm_helper.invoke_llm(question=prompt, messages=messages)
-    print("\n\nresp: ", resp)
     # Verificacion del mensaje
     verification = llm_helper.LLM_recognize_SQL(resp.get("answer"))
-    print("\n\nverification: ", verification)
     if verification == "NL":
         conversation_helper.insert_message(conversation_id, "assistant", resp.get("answer"))
-        print("\n\nera NL, ggktor")
         return {"response": resp.get("answer"), "conversation_id": conversation_id}
     elif verification == "SQL":
         # Ejecución de la consulta
         query = resp.get("answer")
         conversation_helper.insert_message(conversation_id, "assistant", query, "query")
         db_response = execute_query(query)
-        print("\n\ndb_response: ", db_response)
         
         if db_response.get("error") is not None:
             success = False
-            print("\n\nQuery tira error")
             for i in range(retry):
                 error = db_response.get("error")
                 query = llm_helper.LLM_Fix_SQL(prompt, query, error)
-                print("\n\nQuery arreglada: ", query)
                 conversation_helper.insert_message(conversation_id, "assistant", query, "query_review")
                 db_response = execute_query(query)
-                print("\n\ndb_response: ", db_response)
                 if db_response.get("error") is None:
                     success = True
                     break

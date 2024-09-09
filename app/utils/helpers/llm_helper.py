@@ -64,7 +64,6 @@ def invoke_llm(question ,messages: list, temperature=0, top_p=0.1):
         debes seguir respondiendo con mensajes que orienten al usuario a hacer una pregunta en la base de datos.
     """
     return aws_bedrock.invoke_rag_llm_with_memory(
-        question = question,
         rag_data = my_data,
         human_input = "{input}",
         parameters={"input":question},
@@ -107,8 +106,7 @@ def LLM_Fix_SQL(consulta, query, error):
         el SQL utilizado fue: {query}
         y el error es: {error}"""
 
-    return aws_bedrock.invoke_rag_llm_with_memory(consulta,
-                                                  rag_data=my_data,
+    return aws_bedrock.invoke_rag_llm_with_memory(rag_data=my_data,
                                                   system_prompt=system_prompt,
                                                   human_input=human_input,
                                                   parameters={"consulta":consulta, "query":query, "error":error}
