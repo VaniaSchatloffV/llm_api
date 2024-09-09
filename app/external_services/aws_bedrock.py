@@ -13,19 +13,23 @@ settings = get_settings()
 
 
 def invoke_rag_llm_with_memory(question,
-                           rag_data: list,
-                           system_prompt: str,
-                           model: Optional[str] = "anthropic.claude-3-sonnet-20240229-v1:0",
-                           memory: Optional[list] = [],
-                           temperature=0,
-                           top_p=0.1):
+                            rag_data: list,
+                            system_prompt: str,
+                            human_input: str,
+                            llm_model: Optional[str] = "anthropic.claude-3-sonnet-20240229-v1:0",
+                            embeddings_model: Optional[str] = "amazon.titan-embed-text-v1",
+                            memory: Optional[list] = [],
+                            parameters : Optional[dict] = {},
+                            temperature=0,
+                            top_p=0.1):
     bedrock = boto3.client(service_name="bedrock-runtime", region_name=settings.aws_default_region)
     
     model = ChatBedrock(
-        model_id="anthropic.claude-3-sonnet-20240229-v1:0"
+        model_id=llm_model,
+        model_kwargs={"temperature": 0}
     )
 
-    bedrock_embeddings = BedrockEmbeddings(model_id="amazon.titan-embed-text-v1", client=bedrock) # Revisar modelos
+    bedrock_embeddings = BedrockEmbeddings(model_id=embeddings_model, client=bedrock) # Revisar modelos
     
     vector_store = FAISS.from_texts(rag_data, bedrock_embeddings)
     
@@ -46,7 +50,7 @@ def invoke_rag_llm_with_memory(question,
         ),
         MessagesPlaceholder("chat_history"),
         (
-            "human", "{input}"
+            "human", human_input
         ),
     ]
     )
@@ -55,7 +59,9 @@ def invoke_rag_llm_with_memory(question,
     rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
     if len(memory) != 0:
         memory.pop()
-    response = rag_chain.invoke({"context": retriever, "input": question, "chat_history": memory})
+    parameters["context"] = retriever
+    parameters["chat_history"] = memory
+    response = rag_chain.invoke(parameters)
     return response
 
 
@@ -69,7 +75,8 @@ def invoke_llm(human_input: str,
                     top_p=0.1):
     #Actualmente se ha probado pocas veces, pero tiene un funcionamiento de PMV
     model = ChatBedrock(
-        model_id=model
+        model_id=model,
+        model_kwargs={"temperature": temperature, "top_p": top_p}
     )
 
     # build template:

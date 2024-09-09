@@ -64,11 +64,12 @@ def invoke_llm(question ,messages: list, temperature=0, top_p=0.1):
         debes seguir respondiendo con mensajes que orienten al usuario a hacer una pregunta en la base de datos.
     """
     return aws_bedrock.invoke_rag_llm_with_memory(
-        question,
-        my_data,
-        system_prompt,
-        model = "anthropic.claude-3-sonnet-20240229-v1:0",
-        memory = messages,
+        question = question,
+        rag_data = my_data,
+        human_input = "{input}",
+        parameters={"input":question},
+        system_prompt = system_prompt,
+        memory = messages
     )
 
 
@@ -83,7 +84,7 @@ def LLM_recognize_SQL(question, temperature=0, top_p=0.1):
     return aws_bedrock.invoke_llm("{input}",
                                     system_prompt,
                                     parameters = {"input": question},
-                                    model = "anthropic.claude-3-5-sonnet-20240620-v1:0")
+                                    model = "anthropic.claude-3-sonnet-20240229-v1:0")
 
 
 def LLM_Fix_SQL(consulta, query, error):
@@ -106,21 +107,35 @@ def LLM_Fix_SQL(consulta, query, error):
         el SQL utilizado fue: {query}
         y el error es: {error}"""
 
-    return aws_bedrock.invoke_llm(human_input,
-                                system_prompt,
-                                parameters = {"tablas" : my_data, "consulta": consulta, "query": query, "error": error},
-                                model = "anthropic.claude-3-sonnet-20240229-v1:0")
+    return aws_bedrock.invoke_rag_llm_with_memory(consulta,
+                                                  rag_data=my_data,
+                                                  system_prompt=system_prompt,
+                                                  human_input=human_input,
+                                                  parameters={"consulta":consulta, "query":query, "error":error}
+    )
 
 
 def LLM_Translate_Data_to_NL(Data, question, query):
     #Actualmente se ha probado pocas veces, pero tiene un funcionamiento de PMV
-    system_prompt = """    
-        Recibirás una pregunta cuya respuesta se obtuvo de una base de datos la cual es:{Data}. Asume que la pregunta esta respondida de manera correcta y tienes que responder con lo que tienes solamente.
-        La consulta que generó esta data es {query}
-        Tu tarea es entregar esta informacion en lenguaje natural.
-        Se consiso en tu respuesta, no respondas con mas informacion que el lenguaje natural que responda la pregunta.
-        Omite la informacion de que es una lista o que la lista contiene diccionarios, omite mencionar el SQL al que respondes.
-    """
+    
+    if len(Data) == 0:
+        print("\n\ndata vacía")
+        system_prompt = """
+            Tu trabajo es responder que no se encontró información para la pregunta que se te hará
+            Responde "No se encontró información referente a" y agrega palabras clave de la pregunta.
+            No agregues más detalles. No digas más que lo que se te indica.
+        """
+    else:
+        print("\n\nData llenita")
+        system_prompt = """    
+            Recibirás una pregunta.
+            La respuesta a esta pregunta se obtuvo de una base de datos, esta es: {Data}.
+            La consulta que generó esta data es {query}. 
+            Asume que la pregunta esta respondida de manera correcta, tu tarea es responder la pregunta con la información entregada.
+            Asegurate de incluir la información en la respuesta generada.
+            Se conciso en tu respuesta, no respondas con mas informacion que el lenguaje natural que responda la pregunta.
+            Omite la informacion de que es una lista o que la lista contiene diccionarios, omite mencionar el SQL al que respondes.
+        """
     return aws_bedrock.invoke_llm("{question}",
                                             system_prompt,
                                             parameters = {"Data": Data, "question": question, "query": query},
