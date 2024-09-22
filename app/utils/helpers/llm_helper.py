@@ -90,7 +90,7 @@ def LLM_Fix_SQL(consulta, query, error):
     #Actualmente se ha probado pocas veces, pero tiene un funcionamiento de PMV
     system_prompt = """    
         La siguiente es información de tablas en una base de datos, las columnas descritas son las únicas columnas: 
-        {tablas}
+        {context}
         Además, recibirás una consulta hecha por un humano, el SQL que intenta responderla y un error generado por esta consulta.
 
         Tu tarea es identificar por qué ocurre el error. Utilizar columnas no existentes toma precedencia ante otros errores. 
@@ -103,13 +103,13 @@ def LLM_Fix_SQL(consulta, query, error):
 
     human_input = """
         Quiero responder la pregunta: {consulta},
-        el SQL utilizado fue: {query}
+        el SQL utilizado fue: {input}
         y el error es: {error}"""
 
     return aws_bedrock.invoke_rag_llm_with_memory(rag_data=my_data,
                                                   system_prompt=system_prompt,
                                                   human_input=human_input,
-                                                  parameters={"consulta":consulta, "query":query, "error":error}
+                                                  parameters={"consulta":consulta, "input":query, "error":error}
     )
 
 

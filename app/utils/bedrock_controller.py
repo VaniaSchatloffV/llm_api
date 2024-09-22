@@ -89,7 +89,7 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
         data = db_response.get("data")
 
         # PARA REVISAR EL NUMERO DE TOKENS DE LA RESPUESTA
-        encoding = tiktoken.encoding_for_model("gpt-3.5")
+        encoding = tiktoken.encoding_for_model("gpt-4o")
         tokens_used = encoding.encode(str(data))
 
         option_msg = "¿En qué formato desea recibir la información?"
