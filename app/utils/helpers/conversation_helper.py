@@ -161,7 +161,6 @@ def get_conversation_table(offset: Optional[int] = None, limit: Optional[int] = 
             order = [ConversationObject.id.asc()]
         else:
             order = [ConversationObject.id.desc()]
-    print(order_way)
     conversations_table = []
     with DB_ORM_Handler() as db:
         conversations = db.getObjects(
@@ -194,8 +193,20 @@ def get_conversation_table(offset: Optional[int] = None, limit: Optional[int] = 
             row = {}
             row["Id conversación"] = conversation_id
             row["Id usuario"] = user_id
-            row["Mensaje inicial"] = first_message[0].get("message").get("content") if len(first_message) != 0 else None
-            row["Consulta generada"] = query_message[0].get("message").get("content") if len(query_message) != 0 else None
+            row["Mensaje inicial"] = None
+            if len(query_message) != 0 and first_message[0].get("message"):
+                pregunta = first_message[0].get("message")
+                if pregunta:
+                    if type(pregunta) == str:
+                        pregunta = json.loads(pregunta)
+                    row["Mensaje inicial"] = pregunta.get("content")
+            row["Consulta generada"] = None
+            if len(query_message) != 0 and query_message[0].get("message"):
+                consulta = query_message[0].get("message")
+                if consulta:
+                    if type(consulta) == str:
+                        consulta = json.loads(consulta)
+                    row["Consulta generada"] = consulta.get("content")
             conversations_table.append(row)
         return conversations_table
 
