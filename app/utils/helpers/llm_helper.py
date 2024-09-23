@@ -4,6 +4,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from app.utils.constants.rag_data import my_data, my_data2
 from app.dependencies import get_settings
 from app.external_services import aws_bedrock
+import os
 
 settings = get_settings()
 
@@ -20,7 +21,6 @@ def format_llm_memory(messages: list):
 
 
 def LLM_Identify_NL(pregunta, messages: Optional[list] = []):
-    #Actualmente se ha probado pocas veces, pero tiene un funcionamiento de PMV
 
     system_prompt = """    
         Eres un chatbot que trabaja para la Fundación Arturo López Pérez. Responde normalmente a preguntas de conversación, presentándote y ayudando al usuario.
@@ -51,26 +51,26 @@ def LLM_Identify_NL(pregunta, messages: Optional[list] = []):
 def invoke_llm(question ,messages: list, temperature=0, top_p=0.1):
     system_prompt = """
         Las siguientes son descripciones de una tabla y sus campos en una base de datos:
-        {context}
+        {context}, estas se encuentran en el esquema {esquema}.
         Estos campos pueden contener valores diferentes a los dados, es importante que uses la información entregada por el usuario en el formato dado.
         Estas son los únicos campos de las tablas. Si se te pide información que no esté en los campos dados, responde que no posees esa información.
 
-        Con esta información, necesito que traduzcas consultas en lenguaje natural a consultas SQL, utilizando exclusivamente con sintaxis de PostgreSQL.
-        No respondas con nada más que el SQL generado, un ejemplo de SQL es: "SELECT * FROM pacientes;". Tampoco agregues cordialidades o explicaciones, responde solo con SQL.
+        Con esta información, necesito que traduzcas consultas en lenguaje natural a consultas SQL, utilizando exclusivamente sintaxis de PostgreSQL. Es importante que al usar las tablas, agregues {esquema}.tabla, de lo contrario la consulta estará mala.
+        No respondas con nada más que el SQL generado, un ejemplo de SQL es: "SELECT * FROM {esquema}.pacientes;". Tampoco agregues cordialidades o explicaciones, responde solo con SQL.
         Si se te pide informacion que no esta en la tabla no la agregues a la consulta, responde lo que puedas, pero no des explicaciones, responde solo con SQL.
         Si se te pide modificar la base de datos, indica que no lo tienes permitido, este es el único caso donde puedes no usar SQL.
 
         En caso de que sea una conversacion, respondes indicando qué eres y cuál es tu función, la cual es 'Soy un asistente virtual que tiene como fin recibir preguntas referentes a la informacion de la base de datos de FALP, por favor formula tu pregunta', en caso de que la conversacion siga
         debes seguir respondiendo con mensajes que orienten al usuario a hacer una pregunta en la base de datos.
     """
+    
     return aws_bedrock.invoke_rag_llm_with_memory(
         rag_data = my_data,
         human_input = "{input}",
-        parameters={"input":question},
+        parameters={"input":question, "esquema":settings.postgres_schema},
         system_prompt = system_prompt,
         memory = messages
     )
-
 
 def LLM_recognize_SQL(question, temperature=0, top_p=0.1):
     system_prompt = """
@@ -87,18 +87,17 @@ def LLM_recognize_SQL(question, temperature=0, top_p=0.1):
 
 
 def LLM_Fix_SQL(consulta, query, error):
-    #Actualmente se ha probado pocas veces, pero tiene un funcionamiento de PMV
     system_prompt = """    
         La siguiente es información de tablas en una base de datos, las columnas descritas son las únicas columnas: 
-        {context}
+        {context}, estas se encuentran en el esquema {esquema}. La manera de llamar a estas tablas sería {esquema}.tabla.
         Además, recibirás una consulta hecha por un humano, el SQL que intenta responderla y un error generado por esta consulta.
 
         Tu tarea es identificar por qué ocurre el error. Utilizar columnas no existentes toma precedencia ante otros errores. 
 
         La respuesta que debes dar pueden ser de dos tipos: 
         a) Un nuevo SQL que solucione el error y responda la pregunta. Si se requieren campos que no se encuentran en algunas de las tablas, considera que no se puede responder.  
-        b) En caso de que la pregunta no se pueda responder en su totalidad con la informacion que se te propicio, responde exclusivamente con un "Tu pregunta no puede ser respondida por falta de informacion en la base de datos 'indicar que es lo que falta'" 
-        Se conciso en tu respuesta, responda unicamente con lo que se te indico.
+        b) En caso de que la pregunta no se pueda responder en su totalidad con la informacion que se te da, responde exclusivamente con un "Tu pregunta no puede ser respondida por falta de informacion en la base de datos 'indicar que es lo que falta'" 
+        Se conciso en tu respuesta, responda unicamente con lo que se te indicó.
     """
 
     human_input = """
@@ -109,12 +108,10 @@ def LLM_Fix_SQL(consulta, query, error):
     return aws_bedrock.invoke_rag_llm_with_memory(rag_data=my_data,
                                                   system_prompt=system_prompt,
                                                   human_input=human_input,
-                                                  parameters={"consulta":consulta, "input":query, "error":error}
-    )
+                                                  parameters={"esquema":settings.postgres_schema, "consulta":consulta, "input":query, "error":error})
 
 
 def LLM_Translate_Data_to_NL(Data, question, query):
-    #Actualmente se ha probado pocas veces, pero tiene un funcionamiento de PMV
     
     if len(Data) == 0:
         print("\n\ndata vacía")
