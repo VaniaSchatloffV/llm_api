@@ -58,9 +58,8 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
         conversation_helper.insert_message(conversation_id, "assistant", classifier)
         response_format["response"] = {"text": classifier}
         return response_format
-    
-
-    resp = llm_helper.invoke_llm(question=user_message, messages=messages)
+     
+    resp = llm_helper.invoke_llm(question=user_message, messages=messages) #DESCOMENTAR ESTO POR FAVOR
     # Verificacion del mensaje
     verification = llm_helper.LLM_recognize_SQL(resp.get("answer"))
     if verification == "NL":
@@ -71,19 +70,28 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
         query = resp.get("answer")
         conversation_helper.insert_message(conversation_id, "assistant", query, "query")
         db_response = execute_query(query)
-        
         if db_response.get("error") is not None:
             success = False
             for i in range(retry):
                 error = db_response.get("error")
                 query = llm_helper.LLM_Fix_SQL(user_message, query, error)
-                conversation_helper.insert_message(conversation_id, "assistant", query, "query_review")
-                db_response = execute_query(query)
-                if db_response.get("error") is None:
-                    success = True
-                    break
+                
+                verification = llm_helper.LLM_recognize_SQL(query.get("answer"))
+                if verification == "SQL":
+                    conversation_helper.insert_message(conversation_id, "assistant", query.get("answer"), "query_review")
+                    db_response = execute_query(query.get("answer"))
+                    if db_response.get("error") is None:
+                        success = True
+                        break
+                else:
+                    conversation_helper.insert_message(conversation_id, "assistant", query.get("answer"), "conversation")
+                    response_format["response"] = {"text": query.get("answer")}
+                    return response_format 
+                
             if not success:
-                response_format["response"] = {"text": "Ha ocurrido un error con su consulta, por favor contacte a administración de la plataforma para solucionarlo."}
+                failure_msg = "Ha ocurrido un error con su consulta, por favor contacte a administración de la plataforma para solucionarlo."
+                conversation_helper.insert_message(conversation_id, "assistant", failure_msg, "conversation")
+                response_format["response"] = {"text": failure_msg}
                 return response_format
 
         data = db_response.get("data")
@@ -94,7 +102,7 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
 
         option_msg = "¿En qué formato desea recibir la información?"
 
-        if len(tokens_used) < 500: #REVISAR cantidad Y VER SI LO LIMPIAMOS
+        if len(tokens_used) < 500:
             nl_complete_response = llm_helper.LLM_Translate_Data_to_NL(data, user_message, query) + " " + option_msg
             response_format["response"] = {"text": nl_complete_response, "options": file_helper.OPTIONS}
             conversation_helper.insert_message(conversation_id, "assistant", response_format.get("response"), "option")
