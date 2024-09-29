@@ -9,7 +9,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain.chains import create_retrieval_chain, create_history_aware_retriever
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.docstore.in_memory import InMemoryDocstore
-import numpy
+import numpy as np
 
 
 
@@ -22,25 +22,32 @@ def rag_retriever(rag_data: list, formatted_human_input: str, embeddings_model: 
     bedrock_embeddings = BedrockEmbeddings(model_id=embeddings_model, client=bedrock) # Revisar modelos
 
     embedding_function = bedrock_embeddings.embed_documents(texts= rag_data)
-    index = faiss.IndexFlatL2(len(bedrock_embeddings.embed_query(formatted_human_input)))
+    question_embedding = bedrock_embeddings.embed_query(formatted_human_input)
+    index = faiss.IndexFlatIP(len(question_embedding))
 
-    embedding_function_arr = numpy.array(embedding_function)
+    embedding_function_arr = np.array(embedding_function)
+    embedding_function_arr = embedding_function_arr/np.linalg.norm(embedding_function_arr, axis=1, keepdims=True)
 
-    FAISS_norm = FAISS(embedding_function=embedding_function_arr, index = index, docstore= InMemoryDocstore(), index_to_docstore_id={}, distance_strategy="l2")
+    # index.add(embedding_function_arr)
+
+    # question_embedding = np.array(question_embedding).reshape(1, -1)  # Reshape for FAISS
+    # question_embedding /= np.linalg.norm(question_embedding)
+
+
+    # k = 10  # Number of nearest neighbors to retrieve
+    # distances, indices = index.search(question_embedding, k)
+
+    # print(distances)
+    # print(indices)
+
+
+    FAISS_norm = FAISS(embedding_function=embedding_function_arr, index = index, docstore= InMemoryDocstore(), index_to_docstore_id={}, distance_strategy="cosine")
 
     vector_store = FAISS_norm.from_texts(rag_data, bedrock_embeddings)
 
     
+    retriever = vector_store.similarity_search_with_relevance_scores(formatted_human_input, score_threshold=0.8)
     
-    retriever = vector_store.similarity_search_with_relevance_scores(
-        query=formatted_human_input,
-        search_type="similarity_score_threshold",
-        k = 5,
-        search_kwargs=
-            {
-            "score_threshold": 0.01
-            }
-    )
     return retriever
     # Comentado ya que no se utiliza.
     # results = retriever.invoke(question)
