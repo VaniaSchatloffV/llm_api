@@ -116,7 +116,6 @@ def LLM_Fix_SQL(consulta, query, error):
 def LLM_Translate_Data_to_NL(Data, question, query):
     
     if len(Data) == 0:
-        print("\n\ndata vacía")
         system_prompt = """
             Tu trabajo es responder que no se encontró información para la pregunta que se te hará
             Responde "No se encontró información referente a" y agrega palabras clave de la pregunta.
