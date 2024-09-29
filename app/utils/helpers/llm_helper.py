@@ -76,9 +76,11 @@ def LLM_recognize_SQL(question, temperature=0, top_p=0.1):
     system_prompt = """
         Analiza el siguiente mensaje y determina si es completamente código SQL o si contiene lenguaje natural.
 
-        Responde 'SQL' solo si todo el mensaje es sintaxis SQL válida, sin ninguna palabra o frase que no sea parte del código SQL.
-        Responde 'NL' si el mensaje contiene cualquier palabra, frase, o parte en lenguaje natural que no sea sintaxis SQL, incluso si hay segmentos de SQL presentes.
-        Solo clasifica el mensaje.
+        Responde 'SQL' solo si el mensaje consiste únicamente de sintaxis SQL válida. No debe haber palabras adicionales, descripciones, explicaciones, o frases fuera del código SQL.
+        Responde 'NL' si el mensaje contiene cualquier tipo de lenguaje natural, explicaciones, comentarios, o frases adicionales, aunque haya fragmentos de SQL presentes.
+
+        Si encuentras algo que no sea código SQL puro, clasifica como 'NL'.
+        Solo clasifica el mensaje unicamente con las opciones mencionadas.
     """
     return aws_bedrock.invoke_llm("{input}",
                                     system_prompt,
