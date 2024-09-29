@@ -20,3 +20,9 @@ def download_xlsx(file: File):
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         headers={"Content-Disposition": f"attachment; filename={os.path.basename(file_helper.get_file_xlsx_name(file.file_id))}"}
     )
+
+
+
+@router.get("/check/")
+def download_xlsx(file: File):
+    return file_helper.file_exists(file_id=file.file_id, file_type=file.file_type)

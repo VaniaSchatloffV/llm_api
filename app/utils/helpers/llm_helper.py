@@ -121,7 +121,6 @@ def LLM_Translate_Data_to_NL(Data, question, query):
             No agregues más detalles. No digas más que lo que se te indica.
         """
     else:
-        print("\n\nData llenita")
         system_prompt = """    
             Recibirás una pregunta.
             La respuesta a esta pregunta se obtuvo de una base de datos, esta es: {Data}.

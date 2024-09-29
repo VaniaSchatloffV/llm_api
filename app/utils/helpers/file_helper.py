@@ -87,3 +87,17 @@ def download_xlsx_file(file_id: int) -> BytesIO:
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
     return excel_iterator(file_path)
+
+def csv_to_excel(file_id: int):
+    file_path = get_file_csv_name(file_id)
+    read_file_product = pd.read_csv (file_path)
+    read_file_product.to_excel (settings.temp_files + "/" + str(file_id) + ".xlsx", index = None, header=True)
+    os.remove(file_path)
+    return file_id
+
+def file_exists(file_id: str, file_type: str):
+    if file_type == "csv":
+        file_path = get_file_csv_name(file_id)
+    elif file_type == "xlsx":
+        file_path = get_file_xlsx_name(file_id)
+    return os.path.isfile(file_path)

@@ -19,9 +19,10 @@ def execute_query(query):
     try:
         with DB_ORM_Handler() as db:
             data = db.query(query, return_data=True)
-            return {"data": data, "error": None}
+            file_id = file_helper.to_file("csv", data)
+            return {"data": data, "error": None, "file_id": file_id}
     except Exception as e:
-        return {"data": None, "error": str(e)}
+        return {"data": None, "error": str(e), "file_id": -1}
 
 def send_prompt_and_process(user_message: str, conversation_id: int, user_id: int):
     # si no existe la conversación, se crea y retorna nuevo id
@@ -37,11 +38,12 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
     last_option_message = conversation_helper.get_option_messages(conversation_id)
     if user_message in file_helper.OPTIONS and last_option_message and last_option_message.get("role") == "assistant":
         conversation_helper.insert_message(conversation_id, "user", user_message, "option")
-        query = conversation_helper.get_last_query(conversation_id)
-        with DB_ORM_Handler() as db:
-            data = db.query(query, return_data=True)
-        file_id = file_helper.to_file(user_message, data)
-        resp = {"text": "El archivo ya está listo", "file_id": file_id, "file_type": user_message}
+        csv_file_id = conversation_helper.get_last_query(conversation_id).get("csv_file_id")
+        if user_message == "csv":
+            resp = {"text": "El archivo ya está listo", "file_id": csv_file_id, "file_type": user_message}
+        elif user_message == "xlsx":
+            xlsx_file_id = file_helper.csv_to_excel(csv_file_id)
+            resp = {"text": "El archivo ya está listo", "file_id": xlsx_file_id, "file_type": user_message}
         conversation_helper.insert_message(conversation_id, "assistant", resp, "file")
         return {"response": resp, "conversation_id": conversation_id}
     else:
@@ -59,7 +61,7 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
         response_format["response"] = {"text": classifier}
         return response_format
      
-    resp = llm_helper.invoke_llm(question=user_message, messages=messages) #DESCOMENTAR ESTO POR FAVOR
+    resp = llm_helper.invoke_llm(question=user_message, messages=messages)
     # Verificacion del mensaje
     verification = llm_helper.LLM_recognize_SQL(resp.get("answer"))
     if verification == "NL":
@@ -68,8 +70,8 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
     elif verification == "SQL":
         # Ejecución de la consulta
         query = resp.get("answer")
-        conversation_helper.insert_message(conversation_id, "assistant", query, "query")
         db_response = execute_query(query)
+        conversation_helper.insert_message(conversation_id, "assistant", {"query": query, "csv_file_id": db_response.get("file_id")}, "query")
         if db_response.get("error") is not None:
             success = False
             for i in range(retry):
@@ -78,8 +80,8 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
                 
                 verification = llm_helper.LLM_recognize_SQL(query.get("answer"))
                 if verification == "SQL":
-                    conversation_helper.insert_message(conversation_id, "assistant", query.get("answer"), "query_review")
                     db_response = execute_query(query.get("answer"))
+                    conversation_helper.insert_message(conversation_id, "assistant", {"query": query.get("answer"), "csv_file_id": db_response.get("file_id")}, "query_review")
                     if db_response.get("error") is None:
                         success = True
                         break

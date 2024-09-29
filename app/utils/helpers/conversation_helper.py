@@ -206,7 +206,11 @@ def get_conversation_table(offset: Optional[int] = None, limit: Optional[int] = 
                 if consulta:
                     if type(consulta) == str:
                         consulta = json.loads(consulta)
-                    row["Consulta generada"] = consulta.get("content")
+                    if type(consulta.get("content")) == str:
+                        row["Consulta generada"] = consulta.get("content")
+                    else:
+                        row["Consulta generada"] = consulta.get("content").get("query")
+                    
             conversations_table.append(row)
         return conversations_table
 
