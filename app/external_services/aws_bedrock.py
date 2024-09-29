@@ -4,20 +4,42 @@ from typing import Optional
 from langchain_aws import BedrockEmbeddings, ChatBedrock
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.vectorstores import FAISS
+import faiss
 from langchain_core.output_parsers import StrOutputParser
 from langchain.chains import create_retrieval_chain, create_history_aware_retriever
 from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_community.docstore.in_memory import InMemoryDocstore
+import numpy
+
+
 
 from app.dependencies import get_settings
 settings = get_settings()
 
-def rag_retriever(rag_data: list, embeddings_model: Optional[str] = "amazon.titan-embed-text-v1"):
+def rag_retriever(rag_data: list, formatted_human_input: str, embeddings_model: Optional[str] = "amazon.titan-embed-text-v1"):
+    
     bedrock = boto3.client(service_name="bedrock-runtime", region_name=settings.aws_default_region)
     bedrock_embeddings = BedrockEmbeddings(model_id=embeddings_model, client=bedrock) # Revisar modelos
-    vector_store = FAISS.from_texts(rag_data, bedrock_embeddings)
+
+    embedding_function = bedrock_embeddings.embed_documents(texts= rag_data)
+    index = faiss.IndexFlatL2(len(bedrock_embeddings.embed_query(formatted_human_input)))
+
+    embedding_function_arr = numpy.array(embedding_function)
+
+    FAISS_norm = FAISS(embedding_function=embedding_function_arr, index = index, docstore= InMemoryDocstore(), index_to_docstore_id={}, distance_strategy="l2")
+
+    vector_store = FAISS_norm.from_texts(rag_data, bedrock_embeddings)
+
     
-    retriever = vector_store.as_retriever(
-        search_kwargs={"k": 3}
+    
+    retriever = vector_store.similarity_search_with_relevance_scores(
+        query=formatted_human_input,
+        search_type="similarity_score_threshold",
+        k = 5,
+        search_kwargs=
+            {
+            "score_threshold": 0.01
+            }
     )
     return retriever
     # Comentado ya que no se utiliza.
@@ -53,6 +75,9 @@ def invoke_rag_llm_with_memory(rag_data: list,
         model_id=llm_model,
         model_kwargs={"temperature": temperature, "top_p": top_p}
     )
+
+    formatted_human_input = human_input.format(**parameters)
+
     prompt = ChatPromptTemplate.from_messages(
         [
             (
@@ -64,7 +89,10 @@ def invoke_rag_llm_with_memory(rag_data: list,
             ),
         ]
     )
-    retriever = rag_retriever(rag_data, embeddings_model)
+    retriever = rag_retriever(rag_data=rag_data, formatted_human_input=formatted_human_input)
+    print("\nretriever: ",type(retriever))
+    for doc in retriever:
+        print(doc, "\n")
     history_aware_retriever = create_history_aware_retriever(model, retriever, prompt)
     question_answer_chain = create_stuff_documents_chain(model, prompt)
     rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
