@@ -16,7 +16,10 @@ def format_llm_memory(messages: list):
             messages_for_llm.append(HumanMessage(content=content))
         elif mess.get("role") == "assistant":
             content = mess.get("content")
-            messages_for_llm.append(AIMessage(content=content))
+            if type(content) == str:
+                messages_for_llm.append(AIMessage(content=content))
+            else:
+                messages_for_llm.append(AIMessage(content=content.get("query")))
     return messages_for_llm
 
 
