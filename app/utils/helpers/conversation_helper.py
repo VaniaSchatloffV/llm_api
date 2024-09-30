@@ -1,4 +1,5 @@
 import json
+import sqlparse
 from datetime import datetime
 from typing import Optional, Union
 from app.crud.DBORMHandler import DB_ORM_Handler
@@ -207,9 +208,9 @@ def get_conversation_table(offset: Optional[int] = None, limit: Optional[int] = 
                     if type(consulta) == str:
                         consulta = json.loads(consulta)
                     if type(consulta.get("content")) == str:
-                        row["Consulta generada"] = consulta.get("content")
+                        row["Consulta generada"] = sqlparse.format(consulta.get("content"), reindent=True, keyword_case='upper')
                     else:
-                        row["Consulta generada"] = consulta.get("content").get("query")
+                        row["Consulta generada"] = sqlparse.format(consulta.get("content").get("query"), reindent=True, keyword_case='upper')
                     
             conversations_table.append(row)
         return conversations_table
