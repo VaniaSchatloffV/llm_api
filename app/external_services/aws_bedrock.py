@@ -9,6 +9,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain.chains import create_retrieval_chain, create_history_aware_retriever
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.docstore.in_memory import InMemoryDocstore
+from langchain.schema import Document
 import numpy as np
 
 
@@ -18,36 +19,43 @@ settings = get_settings()
 
 def rag_retriever(rag_data: list, formatted_human_input: str, embeddings_model: Optional[str] = "amazon.titan-embed-text-v1"):
     
+    documents = [Document(page_content=i) for i in rag_data]
+
     bedrock = boto3.client(service_name="bedrock-runtime", region_name=settings.aws_default_region)
-    bedrock_embeddings = BedrockEmbeddings(model_id=embeddings_model, client=bedrock) # Revisar modelos
+    bedrock_embeddings = BedrockEmbeddings(model_id=embeddings_model, client=bedrock)
 
-    embedding_function = bedrock_embeddings.embed_documents(texts= rag_data)
+    document_embedding = bedrock_embeddings.embed_documents(texts=rag_data)
     question_embedding = bedrock_embeddings.embed_query(formatted_human_input)
-    index = faiss.IndexFlatIP(len(question_embedding))
 
-    embedding_function_arr = np.array(embedding_function)
-    embedding_function_arr = embedding_function_arr/np.linalg.norm(embedding_function_arr, axis=1, keepdims=True)
+    embedding_array = np.array(document_embedding)
+    embedding_array_norm = embedding_array/np.linalg.norm(embedding_array, axis=1, keepdims=True)
 
-    # index.add(embedding_function_arr)
+    question_array = np.array(question_embedding)
+    question_array_norm = question_array/np.linalg.norm(question_array, keepdims= True)
+    question_array_norm = question_array_norm.reshape(1, -1)
 
-    # question_embedding = np.array(question_embedding).reshape(1, -1)  # Reshape for FAISS
-    # question_embedding /= np.linalg.norm(question_embedding)
+    index = faiss.IndexFlatIP(embedding_array_norm.shape[1])
+    index.add(embedding_array_norm)
 
+    k = 6  # Cambiar a una comparacion con distancia para ver si se excluyen? como un threshold
+    distances, indices = index.search(question_array_norm, k)
 
-    # k = 10  # Number of nearest neighbors to retrieve
-    # distances, indices = index.search(question_embedding, k)
-
-    # print(distances)
-    # print(indices)
-
-
-    FAISS_norm = FAISS(embedding_function=embedding_function_arr, index = index, docstore= InMemoryDocstore(), index_to_docstore_id={}, distance_strategy="cosine")
-
-    vector_store = FAISS_norm.from_texts(rag_data, bedrock_embeddings)
-
+    ordered_indexes = indices.flatten("C")
     
-    retriever = vector_store.similarity_search_with_relevance_scores(formatted_human_input, score_threshold=0.8)
-    
+    print(ordered_indexes)
+    print(distances)
+
+    ordered_documents = [rag_data[i] for i in ordered_indexes]
+
+    #HAY QUE VER UNA MANERA DE ELIMINAR LOS VECTORES QUE NO CORRESPONDEN DE LA LISTA DE VECTORES DE DOCUMENTOS NORMALIZADA. SE ASUME QUE ES LA SIGUIENTE VAR
+
+    haz_lo_que_querai = embedding_array_norm
+    print(haz_lo_que_querai.shape)
+    print(len(haz_lo_que_querai))
+
+    vectorstore = FAISS.from_documents(documents=documents, embedding=bedrock_embeddings)
+    retriever = vectorstore.as_retriever(search_kwargs={'k':len(haz_lo_que_querai)})
+
     return retriever
     # Comentado ya que no se utiliza.
     # results = retriever.invoke(question)
@@ -97,9 +105,7 @@ def invoke_rag_llm_with_memory(rag_data: list,
         ]
     )
     retriever = rag_retriever(rag_data=rag_data, formatted_human_input=formatted_human_input)
-    print("\nretriever: ",type(retriever))
-    for doc in retriever:
-        print(doc, "\n")
+    
     history_aware_retriever = create_history_aware_retriever(model, retriever, prompt)
     question_answer_chain = create_stuff_documents_chain(model, prompt)
     rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
