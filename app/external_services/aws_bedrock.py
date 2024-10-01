@@ -57,7 +57,7 @@ def rag_retriever(rag_data: list, formatted_human_input: str, radio_busqueda: Op
 
     vectorstore = FAISS.from_documents(documents=documents, embedding=bedrock_embeddings)
     retriever = vectorstore.as_retriever()
-
+    print("hola the greatest")
     return retriever
     # Comentado ya que no se utiliza.
     # results = retriever.invoke(question)
