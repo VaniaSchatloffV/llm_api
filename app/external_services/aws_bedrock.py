@@ -17,7 +17,7 @@ import numpy as np
 from app.dependencies import get_settings
 settings = get_settings()
 
-def rag_retriever(rag_data: list, formatted_human_input: str, embeddings_model: Optional[str] = "amazon.titan-embed-text-v1"):
+def rag_retriever(rag_data: list, formatted_human_input: str, radio_busqueda: Optional[float] = 0.5, embeddings_model: Optional[str] = "amazon.titan-embed-text-v1"):
     
     documents = [Document(page_content=i) for i in rag_data]
 
@@ -27,34 +27,36 @@ def rag_retriever(rag_data: list, formatted_human_input: str, embeddings_model: 
     document_embedding = bedrock_embeddings.embed_documents(texts=rag_data)
     question_embedding = bedrock_embeddings.embed_query(formatted_human_input)
 
-    embedding_array = np.array(document_embedding)
-    embedding_array_norm = embedding_array/np.linalg.norm(embedding_array, axis=1, keepdims=True)
+    document_array = np.array(document_embedding)
+    document_array_norm = document_array/np.linalg.norm(document_array, axis=1, keepdims=True)
 
     question_array = np.array(question_embedding)
     question_array_norm = question_array/np.linalg.norm(question_array, keepdims= True)
     question_array_norm = question_array_norm.reshape(1, -1)
 
-    index = faiss.IndexFlatIP(embedding_array_norm.shape[1])
-    index.add(embedding_array_norm)
+    index = faiss.IndexFlatIP(document_array_norm.shape[1])
+    index.add(document_array_norm)
 
-    k = 6  # Cambiar a una comparacion con distancia para ver si se excluyen? como un threshold
-    distances, indices = index.search(question_array_norm, k)
-
-    ordered_indexes = indices.flatten("C")
+    # k = len(rag_data)
+    # distances, indices = index.search(question_array_norm, k)
+    # print(distances)
+    # print(indices)
+    lims, D, I = index.range_search(question_array_norm, radio_busqueda)
     
-    print(ordered_indexes)
-    print(distances)
+    print("\n", D, "\n", I)
 
-    ordered_documents = [rag_data[i] for i in ordered_indexes]
+    filtered_documents = [] 
+
+    for i in I:
+        filtered_documents.append(documents[i])
+        print(i)
+        print(documents[i])
+
 
     #HAY QUE VER UNA MANERA DE ELIMINAR LOS VECTORES QUE NO CORRESPONDEN DE LA LISTA DE VECTORES DE DOCUMENTOS NORMALIZADA. SE ASUME QUE ES LA SIGUIENTE VAR
 
-    haz_lo_que_querai = embedding_array_norm
-    print(haz_lo_que_querai.shape)
-    print(len(haz_lo_que_querai))
-
     vectorstore = FAISS.from_documents(documents=documents, embedding=bedrock_embeddings)
-    retriever = vectorstore.as_retriever(search_kwargs={'k':len(haz_lo_que_querai)})
+    retriever = vectorstore.as_retriever()
 
     return retriever
     # Comentado ya que no se utiliza.
@@ -104,7 +106,7 @@ def invoke_rag_llm_with_memory(rag_data: list,
             ),
         ]
     )
-    retriever = rag_retriever(rag_data=rag_data, formatted_human_input=formatted_human_input)
+    retriever = rag_retriever(rag_data=rag_data, formatted_human_input=formatted_human_input, radio_busqueda=0.6)
     
     history_aware_retriever = create_history_aware_retriever(model, retriever, prompt)
     question_answer_chain = create_stuff_documents_chain(model, prompt)
