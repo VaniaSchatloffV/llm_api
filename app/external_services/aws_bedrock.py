@@ -25,14 +25,18 @@ def rag_retriever(rag_data: list, formatted_human_input: str, radio_busqueda: Op
     bedrock_embeddings = BedrockEmbeddings(model_id=embeddings_model, client=bedrock)
 
     document_embedding = bedrock_embeddings.embed_documents(texts=rag_data)
+    #print("de: ", document_embedding)
     question_embedding = bedrock_embeddings.embed_query(formatted_human_input)
+    #print("qe: ", question_embedding)
 
     document_array = np.array(document_embedding)
     document_array_norm = document_array/np.linalg.norm(document_array, axis=1, keepdims=True)
+    #print("dan: ", document_array_norm)
 
     question_array = np.array(question_embedding)
     question_array_norm = question_array/np.linalg.norm(question_array, keepdims= True)
     question_array_norm = question_array_norm.reshape(1, -1)
+    #print("qan: ", question_array_norm)
 
     index = faiss.IndexFlatIP(document_array_norm.shape[1])
     index.add(document_array_norm)
@@ -57,7 +61,6 @@ def rag_retriever(rag_data: list, formatted_human_input: str, radio_busqueda: Op
 
     vectorstore = FAISS.from_documents(documents=documents, embedding=bedrock_embeddings)
     retriever = vectorstore.as_retriever()
-    print("hola the greatest")
     return retriever
     # Comentado ya que no se utiliza.
     # results = retriever.invoke(question)
@@ -106,7 +109,7 @@ def invoke_rag_llm_with_memory(rag_data: list,
             ),
         ]
     )
-    retriever = rag_retriever(rag_data=rag_data, formatted_human_input=formatted_human_input, radio_busqueda=0.6)
+    retriever = rag_retriever(rag_data=rag_data, formatted_human_input=formatted_human_input, radio_busqueda=0.3)
     
     history_aware_retriever = create_history_aware_retriever(model, retriever, prompt)
     question_answer_chain = create_stuff_documents_chain(model, prompt)

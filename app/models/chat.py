@@ -65,3 +65,4 @@ class MessagesObject(Base):
         for attr in self.__attributes__:
             result[attr] = getattr(self, attr)
         return result
+    

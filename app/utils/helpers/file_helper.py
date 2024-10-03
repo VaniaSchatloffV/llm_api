@@ -7,6 +7,15 @@ import pandas as pd
 import os
 import random
 
+import json
+from datetime import datetime
+from typing import Optional, Union
+from app.crud.DBORMHandler import DB_ORM_Handler
+from app.models.chat import ConversationObject, MessagesObject
+from app.models.files import FileObject
+from sqlalchemy import desc
+
+
 # Todo lo relacionado a archivos
 
 settings = get_settings()
@@ -26,7 +35,7 @@ def to_csv(data: list):
     file_path = settings.temp_files + "/" + str(file_id) + ".csv"
     df = pd.DataFrame(data)
     df.to_csv(file_path)
-    return file_id
+    return str(file_id)
 
 def to_excel(data: list):
     """
@@ -87,3 +96,18 @@ def download_xlsx_file(file_id: int) -> BytesIO:
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
     return excel_iterator(file_path)
+
+def new_file(user_id: int, conversation_id: int, name: str, extension: str):
+    """
+    Función para crear un nuevo archivo en la bd. 
+    Retorna el id del archivo
+    """
+    with DB_ORM_Handler() as db:
+        File = FileObject()
+        File.user_id = user_id
+        File.conversation_id = conversation_id
+        File.name = name
+        File.extension = extension
+        db.createTable(File)
+        File_id = db.saveObject(p_obj=File, get_obj_attr=True, get_obj_attr_name="id")
+        return File_id

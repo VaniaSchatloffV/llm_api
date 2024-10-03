@@ -34,25 +34,26 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
         "conversation_id" : conversation_id
     }
 
-    last_option_message = conversation_helper.get_option_messages(conversation_id)
-    if user_message in file_helper.OPTIONS and last_option_message and last_option_message.get("role") == "assistant":
+    # Se obtienen mensajes anteriores para la llm
+    messages = conversation_helper.get_messages_for_llm(conversation_id)
+    messages_for_llm = llm_helper.format_llm_memory(messages)
+
+    classifier = llm_helper.LLM_Identify_NL(user_message, messages_for_llm)
+    
+    if classifier in file_helper.OPTIONS:
         conversation_helper.insert_message(conversation_id, "user", user_message, "option")
         query = conversation_helper.get_last_query(conversation_id)
         with DB_ORM_Handler() as db:
             data = db.query(query, return_data=True)
-        file_id = file_helper.to_file(user_message, data)
-        resp = {"text": "El archivo ya está listo", "file_id": file_id, "file_type": user_message}
+        file_name = file_helper.to_file(classifier, data)
+        file_id = file_helper.new_file(user_id, conversation_id, file_name, classifier)
+        resp = {"text": "El archivo ya está listo", "file_id": file_id, "file_type": classifier}
         conversation_helper.insert_message(conversation_id, "assistant", resp, "file")
         return {"response": resp, "conversation_id": conversation_id}
     else:
         conversation_helper.insert_message(conversation_id, "user", user_message)
     
-    # Se obtienen mensajes anteriores para la llm
-    messages = conversation_helper.get_messages_for_llm(conversation_id)
-    messages_for_llm = llm_helper.format_llm_memory(messages)
 
-
-    classifier = llm_helper.LLM_Identify_NL(user_message, messages_for_llm)
 
     if classifier != "SQL":
         conversation_helper.insert_message(conversation_id, "assistant", classifier)
