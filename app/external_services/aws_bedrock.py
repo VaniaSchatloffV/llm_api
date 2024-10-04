@@ -47,14 +47,14 @@ def rag_retriever(rag_data: list, formatted_human_input: str, radio_busqueda: Op
     # print(indices)
     lims, D, I = index.range_search(question_array_norm, radio_busqueda)
     
-    print("\n", D, "\n", I)
+    # print("\n", D, "\n", I)
 
     filtered_documents = [] 
 
     for i in I:
         filtered_documents.append(documents[i])
-        print(i)
-        print(documents[i])
+    #    print(i)
+    #    print(documents[i])
 
 
     #HAY QUE VER UNA MANERA DE ELIMINAR LOS VECTORES QUE NO CORRESPONDEN DE LA LISTA DE VECTORES DE DOCUMENTOS NORMALIZADA. SE ASUME QUE ES LA SIGUIENTE VAR
