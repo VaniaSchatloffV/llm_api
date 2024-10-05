@@ -1,31 +1,58 @@
 import boto3
-from typing import Optional
+import faiss
+import numpy as np
 
+from typing import Optional
 from langchain_aws import BedrockEmbeddings, ChatBedrock
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.vectorstores import FAISS
 from langchain_core.output_parsers import StrOutputParser
 from langchain.chains import create_retrieval_chain, create_history_aware_retriever
 from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_community.docstore.in_memory import InMemoryDocstore
+from langchain.schema import Document
 
 from app.dependencies import get_settings
 settings = get_settings()
 
-def rag_retriever(rag_data: list, embeddings_model: Optional[str] = "amazon.titan-embed-text-v1"):
-    bedrock = boto3.client(service_name="bedrock-runtime", region_name=settings.aws_default_region)
-    bedrock_embeddings = BedrockEmbeddings(model_id=embeddings_model, client=bedrock) # Revisar modelos
-    vector_store = FAISS.from_texts(rag_data, bedrock_embeddings)
+def rag_retriever(rag_data: list, formatted_human_input: str, radio_busqueda: Optional[float] = 0.5, embeddings_model: Optional[str] = "amazon.titan-embed-text-v1"):
     
-    retriever = vector_store.as_retriever(
-        search_kwargs={"k": 3}
-    )
+    documents = [Document(page_content=i) for i in rag_data]
+
+    bedrock = boto3.client(service_name="bedrock-runtime", region_name=settings.aws_default_region)
+    bedrock_embeddings = BedrockEmbeddings(model_id=embeddings_model, client=bedrock)
+
+    document_embedding = bedrock_embeddings.embed_documents(texts=rag_data)
+    #print("de: ", document_embedding)
+    question_embedding = bedrock_embeddings.embed_query(formatted_human_input)
+    #print("qe: ", question_embedding)
+
+    document_array = np.array(document_embedding)
+    document_array_norm = document_array/np.linalg.norm(document_array, axis=1, keepdims=True)
+    #print("dan: ", document_array_norm)
+
+    question_array = np.array(question_embedding)
+    question_array_norm = question_array/np.linalg.norm(question_array, keepdims= True)
+    question_array_norm = question_array_norm.reshape(1, -1)
+    #print("qan: ", question_array_norm)
+
+    index = faiss.IndexFlatIP(document_array_norm.shape[1])
+    index.add(document_array_norm)
+
+    # print(distances)
+    # print(indices)
+    lims, D, I = index.range_search(question_array_norm, radio_busqueda)
+    
+    # print("\n", D, "\n", I)
+
+    filtered_documents = [] 
+
+    for i in I:
+        filtered_documents.append(documents[i])
+
+    vectorstore = FAISS.from_documents(documents=documents, embedding=bedrock_embeddings)
+    retriever = vectorstore.as_retriever()
     return retriever
-    # Comentado ya que no se utiliza.
-    # results = retriever.invoke(question)
-    # results_string = []
-    # for result in results:
-    #     results_string.append(result.page_content)
-    # return results_string
 
 
 def invoke_rag_llm_with_memory(rag_data: list,
@@ -53,6 +80,9 @@ def invoke_rag_llm_with_memory(rag_data: list,
         model_id=llm_model,
         model_kwargs={"temperature": temperature, "top_p": top_p}
     )
+
+    formatted_human_input = human_input.format(**parameters)
+
     prompt = ChatPromptTemplate.from_messages(
         [
             (
@@ -64,7 +94,8 @@ def invoke_rag_llm_with_memory(rag_data: list,
             ),
         ]
     )
-    retriever = rag_retriever(rag_data, embeddings_model)
+    retriever = rag_retriever(rag_data=rag_data, formatted_human_input=formatted_human_input, radio_busqueda=0.3)
+    
     history_aware_retriever = create_history_aware_retriever(model, retriever, prompt)
     question_answer_chain = create_stuff_documents_chain(model, prompt)
     rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)

@@ -15,3 +15,4 @@ SQLAlchemy==2.0.32
 PyMySQL==1.1.1
 tiktoken==0.7.0
 sqlparse==0.5.1
+fastapi-utilities==0.2.0

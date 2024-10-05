@@ -30,7 +30,38 @@ my_data = [
     'id_doctor' de tipo int: es clave foránea de la tabla "doctores".
     'id_paciente' de tipo int: es clave foránea de la tabla "pacientes".
 
-    """]
+    """,
+    """
+    En la tabla de nombre: "enfermeros"
+    se almacena información referente a los enfermeros que trabajan en la Fundación oncológica Arturo López Pérez.
+    La información almacenada comprende las columnas:
+    'id' de tipo int: esta es la clave primaria de la tabla.
+    'nombre' de tipo varchar: este campo corresponde al nombre del enfermero. Algunos ejemplos de entradas son: 'Juan', 'Ana', 'Pablo', 'Laura', todos parten con mayúscula.
+    'apellido' de tipo varchar: este campo corresponde al apellido del enfermero. Algunos ejemplos de entradas son: 'Perez', 'Gomez', 'Martinez', todos parten con mayúscula.
+    'turno' de tipo varchar: este campo indica el turno de trabajo del enfermero. Algunos ejemplos de entradas son: 'Mañana', 'Tarde', 'Noche', todos parten con mayúscula.
+    'especialización' de tipo varchar: este campo contiene la especialidad del enfermero. Ejemplos incluyen: 'Cuidados Intensivos', 'Oncología', 'Urgencias', todos parten con mayúscula y llevan tilde.
+    """,
+    """
+    En la tabla de nombre: "medicamentos"
+    se almacena información referente a los medicamentos utilizados en el tratamiento de los pacientes de la Fundación oncológica Arturo López Pérez.
+    La información almacenada comprende las columnas:
+    'id' de tipo int: esta es la clave primaria de la tabla.
+    'nombre' de tipo varchar: este campo corresponde al nombre del medicamento. Algunos ejemplos de entradas son: 'Paracetamol', 'Ibuprofeno', 'Cisplatino', todos parten con mayúscula.
+    'tipo' de tipo varchar: este campo indica la clase de medicamento. Ejemplos incluyen: 'Analgésico', 'Quimioterapia', 'Antiinflamatorio', todos parten con mayúscula y llevan tilde.
+    'dosis' de tipo varchar: este campo indica la dosis recomendada para el tratamiento, como '500mg', '1g', '250mg'.
+    'frecuencia' de tipo varchar: este campo especifica la frecuencia de administración del medicamento. Ejemplos incluyen: 'Cada 8 horas', 'Una vez al día', 'Cada 12 horas', todos parten con mayúscula.
+    """,
+    """ En la tabla de nombre: "exámenes"
+    se almacena información referente a los exámenes médicos realizados a los pacientes de la Fundación oncológica Arturo López Pérez.
+    La información almacenada comprende las columnas:
+    'id' de tipo int: esta es la clave primaria de la tabla.
+    'nombre' de tipo varchar: este campo corresponde al nombre del examen. Algunos ejemplos de entradas son: 'Hemograma', 'Tomografía', 'Biopsia', todos parten con mayúscula.
+    'tipo' de tipo varchar: este campo indica la categoría del examen. Ejemplos incluyen: 'Laboratorio', 'Imagenología', 'Patología', todos parten con mayúscula.
+    'fecha_realización' de tipo date: este campo almacena la fecha en que se realizó el examen.
+    'id_paciente' de tipo int: es clave foránea de la tabla "pacientes", indicando a qué paciente se le realizó el examen.
+    """
+    
+    ]
 
 my_data2 = [
     """
