@@ -31,34 +31,42 @@ def to_csv(data: list):
     """
     Almacena data en un archivo csv. Retorna id de archivo.
     """
-    file_id = random.randint(0, 100000)
-    file_path = settings.temp_files + "/" + str(file_id) + ".csv"
+    file_name = random.randint(0, 100000)
+    file_path = settings.temp_files + "/" + str(file_name) + ".csv"
     df = pd.DataFrame(data)
     df.to_csv(file_path)
-    return str(file_id)
+    return str(file_name)
 
 def to_excel(data: list):
     """
     Almacena data en un archivo xlsx. Retorna id de archivo.
     """
-    file_id = random.randint(0, 100000)
-    file_path = settings.temp_files + "/" + str(file_id) + ".xlsx"
+    file_name = random.randint(0, 100000)
+    file_path = settings.temp_files + "/" + str(file_name) + ".xlsx"
     df = pd.DataFrame(data)
     df.to_excel(file_path)
-    return file_id
+    return file_name
 
 def get_file_csv_name(file_id: int):
     """
     Retorna string con la ruta de archivo csv
     """
-    file_path = settings.temp_files + "/" +  str(file_id) + ".csv"
+    with DB_ORM_Handler as db:
+        query = "SELECT name FROM archivos WHERE id = " + file_id
+        file_name = db.query(query, return_data=True)
+
+    file_path = settings.temp_files + "/" +  str(file_name) + ".csv"
     return file_path
 
 def get_file_xlsx_name(file_id: int):
     """
     Retorna string con la ruta de archivo xlsx
     """
-    file_path = settings.temp_files + "/" +  str(file_id) + ".xlsx"
+    with DB_ORM_Handler as db:
+        query = "SELECT name FROM archivos WHERE id = " + file_id
+        file_name = db.query(query, return_data=True)
+
+    file_path = settings.temp_files + "/" +  str(file_name) + ".xlsx"
     return file_path
 
 def file_iterator(file_path: str):
@@ -97,7 +105,6 @@ def download_xlsx_file(file_id: int) -> BytesIO:
         raise HTTPException(status_code=404, detail="File not found")
     return excel_iterator(file_path)
 
-
 def csv_to_excel(file_id: int):
     file_path = get_file_csv_name(file_id)
     read_file_product = pd.read_csv (file_path)
@@ -126,4 +133,3 @@ def new_file(user_id: int, conversation_id: int, name: str, extension: str):
         db.createTable(File)
         File_id = db.saveObject(p_obj=File, get_obj_attr=True, get_obj_attr_name="id")
         return File_id
-
