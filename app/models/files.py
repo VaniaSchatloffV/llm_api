@@ -8,7 +8,6 @@ from sqlalchemy.orm import registry
 from sqlalchemy.sql import func
 from datetime import timedelta
 
-
 mapper_registry = registry()
 
 Base = mapper_registry.generate_base()
@@ -25,7 +24,7 @@ class FileObject(Base):
     conversation_id             = sal.Column('conversation_id', sal.BigInteger, sal.ForeignKey(ConversationObject.id))
     name                        = sal.Column('name', sal.String(length=256))
     created_at                  = sal.Column('created_at', sal.DateTime(timezone=True), server_default=func.now())
-    expires_at                  = sal.Column('expires_at', sal.DateTime(timezone=True), server_default=func.now()+timedelta(days=3)) # Potencialmente cambiar numero de días
+    expires_at                  = sal.Column('expires_at', sal.DateTime(timezone=True), server_default=func.now()+timedelta(days=settings.file_expiration_time_delta)) # Potencialmente cambiar numero de días
     extension                   = sal.Column('extension', sal.String(length=4))
     
     def __repr__(self):

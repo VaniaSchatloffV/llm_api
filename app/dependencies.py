@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     postgres_db : str
     temp_files : str
     postgres_schema : str
+    file_expiration_time_delta: float
     
     class Config:
         env_file = ".env"

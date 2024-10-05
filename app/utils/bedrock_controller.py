@@ -31,12 +31,12 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
 
     # Se obtienen mensajes anteriores para la llm
     messages = conversation_helper.get_messages_for_llm(conversation_id)
-    print(messages)
     messages_for_llm = llm_helper.format_llm_memory(messages)
 
     classifier = llm_helper.LLM_Identify_NL(user_message, messages_for_llm)
     
     if classifier != "SQL" and not(classifier in file_helper.OPTIONS):
+        conversation_helper.insert_message(conversation_id, "user", user_message)
         conversation_helper.insert_message(conversation_id, "assistant", classifier)
         response_format["response"] = {"text": classifier}
         return response_format
