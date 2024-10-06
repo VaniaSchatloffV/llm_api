@@ -52,12 +52,13 @@ def get_file_path(file_id: int):
     Retorna string con la ruta de archivo
     """
     with DB_ORM_Handler() as db:
-        query = "SELECT name, extension FROM archivos WHERE id = " + str(file_id) #revisar si agregar esto a env
-        res = db.query(query, return_data=True)
+        res = db.getObjects(
+            FileObject,
+            FileObject.id == file_id
+        )
         if res:
-            file_name = res[0].get("name") #tomar primer elemento de una lista con forma [{'name': 'str', 'extension': 'str'}], debe haber una mejor manera
-            file_ext = res[0].get("extension")
-            file_path = settings.temp_files + "/" +  str(file_name) + "." + str(file_ext)
+            res = res.pop().get_dictionary()
+            file_path = settings.temp_files + str(res.get("name")) + "." + str(res.get("extension"))
             return file_path
         else:
             raise HTTPException(status_code=404, detail="File not found")
@@ -85,8 +86,9 @@ def download_file(file_id: int) -> BytesIO:
 
 def csv_to_excel(file_id: int):
     file_path = get_file_path(file_id)
-    read_file_product = pd.read_csv (file_path)
-    read_file_product.to_excel (settings.temp_files + "/" + str(file_id) + ".xlsx", index = None, header=True)
+    read_file_product = pd.read_csv(file_path)
+    read_file_product.to_excel(file_path.replace("csv", "xlsx"), index = None, header=True)
+    update_file(file_id, "xlsx")
     return file_id
 
 def file_exists(file_id: str):
@@ -107,3 +109,14 @@ def new_file(user_id: int, conversation_id: int, name: str, extension: str):
         db.createTable(File)
         File_id = db.saveObject(p_obj=File, get_obj_attr=True, get_obj_attr_name="id")
         return File_id
+
+def update_file(file_id: int, extension: str):
+    """
+    Función para actualizar extensión de archivo.
+    """
+    with DB_ORM_Handler() as db:
+        return db.updateObjects(
+            FileObject,
+            FileObject.id == file_id,
+            extension = extension
+        )
