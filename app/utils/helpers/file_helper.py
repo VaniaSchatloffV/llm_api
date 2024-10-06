@@ -73,8 +73,6 @@ def file_iterator(file_path: str):
         with open(file_path, "rb") as excel_file:
             while chunk := excel_file.read(8192):  # 8 KB
                 yield chunk
-    os.remove(file_path)
-    
 
 def download_file(file_id: int) -> BytesIO:
     """
@@ -89,7 +87,6 @@ def csv_to_excel(file_id: int):
     file_path = get_file_path(file_id)
     read_file_product = pd.read_csv (file_path)
     read_file_product.to_excel (settings.temp_files + "/" + str(file_id) + ".xlsx", index = None, header=True)
-    os.remove(file_path)
     return file_id
 
 def file_exists(file_id: str):
