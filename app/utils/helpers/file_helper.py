@@ -31,85 +31,68 @@ def to_csv(data: list):
     """
     Almacena data en un archivo csv. Retorna id de archivo.
     """
-    file_id = random.randint(0, 100000)
-    file_path = settings.temp_files + "/" + str(file_id) + ".csv"
+    file_name = random.randint(0, 100000)
+    file_path = settings.temp_files + "/" + str(file_name) + ".csv"
     df = pd.DataFrame(data)
     df.to_csv(file_path)
-    return str(file_id)
+    return str(file_name)
 
 def to_excel(data: list):
     """
     Almacena data en un archivo xlsx. Retorna id de archivo.
     """
-    file_id = random.randint(0, 100000)
-    file_path = settings.temp_files + "/" + str(file_id) + ".xlsx"
+    file_name = random.randint(0, 100000)
+    file_path = settings.temp_files + "/" + str(file_name) + ".xlsx"
     df = pd.DataFrame(data)
     df.to_excel(file_path)
-    return file_id
+    return file_name
 
-def get_file_csv_name(file_id: int):
+def get_file_path(file_id: int):
     """
-    Retorna string con la ruta de archivo csv
+    Retorna string con la ruta de archivo
     """
-    file_path = settings.temp_files + "/" +  str(file_id) + ".csv"
-    return file_path
-
-def get_file_xlsx_name(file_id: int):
-    """
-    Retorna string con la ruta de archivo xlsx
-    """
-    file_path = settings.temp_files + "/" +  str(file_id) + ".xlsx"
-    return file_path
+    with DB_ORM_Handler() as db:
+        res = db.getObjects(
+            FileObject,
+            FileObject.id == file_id
+        )
+        if res:
+            res = res.pop().get_dictionary()
+            file_path = settings.temp_files + str(res.get("name")) + "." + str(res.get("extension"))
+            return file_path
+        else:
+            raise HTTPException(status_code=404, detail="File not found")
 
 def file_iterator(file_path: str):
     """
     Itera sobre archivo
     """
-    with open(file_path, mode="rb") as file:
-        yield from file
-    os.remove(file_path)
+    if "csv" in file_path: #revisar como cambiar esto para que sea más modular y menos duro
+        with open(file_path, mode="rb") as file:
+            yield from file
+    elif "xlsx" in file_path:
+        with open(file_path, "rb") as excel_file:
+            while chunk := excel_file.read(8192):  # 8 KB
+                yield chunk
 
-def excel_iterator(file_path: str) -> Iterator[bytes]:
+def download_file(file_id: int) -> BytesIO:
     """
-    Itera sobre archivo excel
+    Descarga archivo por chunks
     """
-    with open(file_path, "rb") as excel_file:
-        while chunk := excel_file.read(8192):  # 8 KB
-            yield chunk
-    os.remove(file_path)
-
-
-def download_csv_file(file_id: int):
-    """
-    Descarga archivo csv por chunks
-    """
-    file_path = get_file_csv_name(file_id)
+    file_path = get_file_path(file_id)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
     return file_iterator(file_path)
 
-def download_xlsx_file(file_id: int) -> BytesIO:
-    """
-    Descarga archivo xlsx por chunks
-    """
-    file_path = get_file_xlsx_name(file_id)
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found")
-    return excel_iterator(file_path)
-
-
 def csv_to_excel(file_id: int):
-    file_path = get_file_csv_name(file_id)
-    read_file_product = pd.read_csv (file_path)
-    read_file_product.to_excel (settings.temp_files + "/" + str(file_id) + ".xlsx", index = None, header=True)
-    os.remove(file_path)
+    file_path = get_file_path(file_id)
+    read_file_product = pd.read_csv(file_path)
+    read_file_product.to_excel(file_path.replace("csv", "xlsx"), index = None, header=True)
+    update_file(file_id, "xlsx")
     return file_id
 
-def file_exists(file_id: str, file_type: str):
-    if file_type == "csv":
-        file_path = get_file_csv_name(file_id)
-    elif file_type == "xlsx":
-        file_path = get_file_xlsx_name(file_id)
+def file_exists(file_id: str):
+    file_path = get_file_path(file_id)
     return os.path.isfile(file_path)
 
 def new_file(user_id: int, conversation_id: int, name: str, extension: str):
@@ -127,3 +110,13 @@ def new_file(user_id: int, conversation_id: int, name: str, extension: str):
         File_id = db.saveObject(p_obj=File, get_obj_attr=True, get_obj_attr_name="id")
         return File_id
 
+def update_file(file_id: int, extension: str):
+    """
+    Función para actualizar extensión de archivo.
+    """
+    with DB_ORM_Handler() as db:
+        return db.updateObjects(
+            FileObject,
+            FileObject.id == file_id,
+            extension = extension
+        )

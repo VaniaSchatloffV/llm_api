@@ -28,7 +28,7 @@ class FileObject(Base):
     extension                   = sal.Column('extension', sal.String(length=4))
     
     def __repr__(self):
-        return(f"ConversationObject (id={self.id}, user_id={self.user_id}, name={self.name}, created_at={self.created_at}, expires_at={self.expires_at}, extension={self.extension})")
+        return(f"FileObject (id={self.id}, user_id={self.user_id}, name={self.name}, created_at={self.created_at}, expires_at={self.expires_at}, extension={self.extension})")
     
     def set_dictionary(self, data: dict):
         for attr in self.__attributes__:
