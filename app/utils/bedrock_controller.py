@@ -35,7 +35,7 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
     messages_for_llm = llm_helper.format_llm_memory(messages)
 
     classifier = llm_helper.LLM_Identify_NL(user_message, messages_for_llm)
-    
+
     if classifier != "SQL" and not(classifier in file_helper.OPTIONS):
         conversation_helper.insert_message(conversation_id, "user", user_message)
         conversation_helper.insert_message(conversation_id, "assistant", classifier)
@@ -44,14 +44,18 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
 
     if classifier in file_helper.OPTIONS:
         conversation_helper.insert_message(conversation_id, "user", user_message, "option")
-        csv_file_id = conversation_helper.get_last_query(conversation_id).get("file_id")
-        if classifier == "csv":
-            resp = {"text": "El archivo ya está listo", "file_id": csv_file_id, "file_type": classifier}
-        elif classifier == "xlsx":
-            xlsx_file_id = file_helper.csv_to_excel(csv_file_id)
-            resp = {"text": "El archivo ya está listo", "file_id": xlsx_file_id, "file_type": classifier}
-        conversation_helper.insert_message(conversation_id, "assistant", resp, "file")
-        return {"response": resp, "conversation_id": conversation_id}
+        last_query = conversation_helper.get_last_query(conversation_id)
+        if last_query:
+            csv_file_id = last_query.get("file_id")
+            if classifier == "csv":
+                resp = {"text": "El archivo ya está listo", "file_id": csv_file_id, "file_type": classifier}
+            elif classifier == "xlsx":
+                xlsx_file_id = file_helper.csv_to_excel(user_id = user_id, conversation_id = conversation_id, file_id_csv = csv_file_id)
+                resp = {"text": "El archivo ya está listo", "file_id": xlsx_file_id, "file_type": classifier}
+            conversation_helper.insert_message(conversation_id, "assistant", resp, "file")
+            return {"response": resp, "conversation_id": conversation_id}
+        else:
+            return {"response": "No hay información que retornar, haz una pregunta.", "conversation_id": conversation_id}
     else:
         conversation_helper.insert_message(conversation_id, "user", user_message)
         resp = llm_helper.LLM_SQL(question=user_message, messages=messages)
@@ -95,7 +99,7 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
             encoding = tiktoken.encoding_for_model("gpt-4o")
             tokens_used = encoding.encode(str(data))
             nl_response = llm_helper.LLM_Translate_Data_to_NL(data, user_message, query, tokens_used)
-            response_format["response"] = {"text": nl_response, "options": file_helper.OPTIONS}
+            response_format["response"] = {"text": nl_response}
             conversation_helper.insert_message(conversation_id, "assistant", response_format.get("response"), "response")
                         
             return response_format
