@@ -26,6 +26,7 @@ def to_file(type: str, data: list):
         return to_csv(data)
     if type == "xlsx":
         return to_excel(data)
+    
 
 def to_csv(data: list):
     """
@@ -46,6 +47,12 @@ def to_excel(data: list):
     df = pd.DataFrame(data)
     df.to_excel(file_path)
     return file_name
+
+def to_png():
+    file_name = random.randint(0, 100000)
+    file_path = settings.temp_files + "/" + str(file_name) + ".png"
+
+
 
 def get_file_path(file_id: int):
     """
@@ -120,3 +127,13 @@ def update_file(file_id: int, extension: str):
             FileObject.id == file_id,
             extension = extension
         )
+    
+def get_last_file_from_conversation(conversation_id):
+    with DB_ORM_Handler() as db:
+        files = db.getObjects(
+            FileObject,
+            FileObject.conversation_id == conversation_id,
+            order_by= [desc(FileObject.id)],
+            limit = 1    
+        )
+    return files

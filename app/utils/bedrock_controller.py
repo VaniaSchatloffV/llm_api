@@ -1,9 +1,11 @@
 from botocore.exceptions import ClientError
 import tiktoken
+import pandas as pd 
+import json
 
 from app.dependencies import get_settings
 from app.crud.DBORMHandler import DB_ORM_Handler
-from .helpers import conversation_helper, file_helper, llm_helper
+from .helpers import conversation_helper, file_helper, llm_helper, graphic_helper
 
 settings = get_settings()
 
@@ -35,23 +37,57 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
     messages_for_llm = llm_helper.format_llm_memory(messages)
 
     classifier = llm_helper.LLM_Identify_NL(user_message, messages_for_llm)
-    
-    if classifier != "SQL" and not(classifier in file_helper.OPTIONS):
+    #Ruta para cuando el identify reconoce una conversacion
+    if classifier != "SQL" and not(classifier in file_helper.OPTIONS) and classifier != "graph":
         conversation_helper.insert_message(conversation_id, "user", user_message)
         conversation_helper.insert_message(conversation_id, "assistant", classifier)
         response_format["response"] = {"text": classifier}
         return response_format
+    
+    #Ruta para cuando el identify reconoce como grafico
+    if classifier == "graph":
+        print("entre a graph")
+        conversation_helper.insert_message(conversation_id, "user", user_message, "conversation")
+        file = file_helper.get_last_file_from_conversation(conversation_id=conversation_id)
+        print(file)
+        if file != None: 
+            print("holis")
+            file = file.pop()
+            file = file.get_dictionary()
+            file_path = file_helper.get_file_path(file.get("id"))
+            if file.get("extension") == "csv":
+                df_d = pd.read_csv(file_path)
+            if file.get("extension") == "xlsx":
+                df_d = pd.read_excel(file_path)
 
+
+            graph_option = llm_helper.LLM_graphgen(df_d.columns,user_message)
+            dic_go = json.loads(graph_option)
+            grafico = graphic_helper.generar_grafico(file_path,dic_go['tipo_grafico'],dic_go['x_col'],dic_go['y_col'])
+            print(type(grafico))
+            file_helper.to_png(grafico)
+            conversation_helper.insert_message(conversation_id, "assistant", grafico, "conversation")
+            return grafico
+        else:
+            print("pena")
+
+        
+
+        
+    #Ruta para cuando el identify reconoce un mensaje de tipo opcion (csv,xlsx)
     if classifier in file_helper.OPTIONS:
         conversation_helper.insert_message(conversation_id, "user", user_message, "option")
-        csv_file_id = conversation_helper.get_last_query(conversation_id).get("file_id")
-        if classifier == "csv":
-            resp = {"text": "El archivo ya está listo", "file_id": csv_file_id, "file_type": classifier}
-        elif classifier == "xlsx":
-            xlsx_file_id = file_helper.csv_to_excel(csv_file_id)
-            resp = {"text": "El archivo ya está listo", "file_id": xlsx_file_id, "file_type": classifier}
-        conversation_helper.insert_message(conversation_id, "assistant", resp, "file")
-        return {"response": resp, "conversation_id": conversation_id}
+        last_query = conversation_helper.get_last_query(conversation_id)
+        if last_query:
+            csv_file_id = last_query.get("file_id")
+            if classifier == "csv":
+                resp = {"text": "El archivo ya está listo", "file_id": csv_file_id, "file_type": classifier}
+            elif classifier == "xlsx":
+                xlsx_file_id = file_helper.csv_to_excel(csv_file_id)
+                resp = {"text": "El archivo ya está listo", "file_id": xlsx_file_id, "file_type": classifier}
+            conversation_helper.insert_message(conversation_id, "assistant", resp, "file")
+            return {"response": resp, "conversation_id": conversation_id}
+    #Ruta para cuando el identify reconoce un mensaje de tipo SQL
     else:
         conversation_helper.insert_message(conversation_id, "user", user_message)
         resp = llm_helper.LLM_SQL(question=user_message, messages=messages)
