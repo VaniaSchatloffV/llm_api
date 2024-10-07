@@ -33,7 +33,7 @@ def to_csv(data: list):
     Almacena data en un archivo csv. Retorna id de archivo.
     """
     file_name = random.randint(0, 100000)
-    file_path = settings.temp_files + "/" + str(file_name) + ".csv"
+    file_path = settings.temp_files + str(file_name) + ".csv"
     df = pd.DataFrame(data)
     df.to_csv(file_path)
     return str(file_name)
@@ -43,7 +43,7 @@ def to_excel(data: list):
     Almacena data en un archivo xlsx. Retorna id de archivo.
     """
     file_name = random.randint(0, 100000)
-    file_path = settings.temp_files + "/" + str(file_name) + ".xlsx"
+    file_path = settings.temp_files + str(file_name) + ".xlsx"
     df = pd.DataFrame(data)
     df.to_excel(file_path)
     return file_name
@@ -66,6 +66,7 @@ def get_file_path(file_id: int):
         if res:
             res = res.pop().get_dictionary()
             file_path = settings.temp_files + str(res.get("name")) + "." + str(res.get("extension"))
+            file_path = os.path.abspath(file_path)
             return file_path
         else:
             raise HTTPException(status_code=404, detail="File not found")
@@ -91,11 +92,12 @@ def download_file(file_id: int) -> BytesIO:
         raise HTTPException(status_code=404, detail="File not found")
     return file_iterator(file_path)
 
-def csv_to_excel(file_id: int):
-    file_path = get_file_path(file_id)
+def csv_to_excel(user_id : int, conversation_id : int, file_id_csv : int):
+    file_path = get_file_path(file_id_csv)
     read_file_product = pd.read_csv(file_path)
     read_file_product.to_excel(file_path.replace("csv", "xlsx"), index = None, header=True)
-    update_file(file_id, "xlsx")
+    name = file_path.split('\\').pop().split(".")[0]
+    file_id = new_file(user_id = user_id, conversation_id = conversation_id, name = name, extension = "xlsx")
     return file_id
 
 def file_exists(file_id: str):
