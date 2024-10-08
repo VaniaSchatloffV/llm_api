@@ -166,7 +166,7 @@ def LLM_graphgen(Data, question):
         {{
             "tipo_grafico": "scatter/line/bar/hist",
             "x_col": "nombre_columna_x",
-            "y_col": "nombre_columna_y" (opcional si es necesario)
+            "y_col": "nombre_columna_y" 
         }}
 
             """

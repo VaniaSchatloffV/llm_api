@@ -48,9 +48,6 @@ def to_excel(data: list):
     df.to_excel(file_path)
     return file_name
 
-def to_png():
-    file_name = random.randint(0, 100000)
-    file_path = settings.temp_files + "/" + str(file_name) + ".png"
 
 
 

@@ -2,7 +2,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import random
+from app.dependencies import get_settings
 
+settings = get_settings()
 def generar_grafico(csv_path, tipo_grafico, x_col, y_col=None):
     # Cargar el archivo CSV en un DataFrame de pandas
     df = pd.read_csv(csv_path)
@@ -22,9 +24,10 @@ def generar_grafico(csv_path, tipo_grafico, x_col, y_col=None):
     # Mostrar el gráfico
     #plt.show()
     x = random.randint(0, 100000) 
-    save_results_to = "D:/Usuarios/Desktop/MEMORIA/API/llm_api/temp_files"
+    save_results_to = settings.temp_files
     archivo = plt.savefig(save_results_to + str(x) + ".png")
-    return archivo
+    print(x)
+    return archivo, x
 
 # Ejemplo de uso
 # generar_grafico('datos.csv', 'scatter', 'columna_x', 'columna_y')
