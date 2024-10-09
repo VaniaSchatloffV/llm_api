@@ -13,12 +13,13 @@ class ConversationObject(Base):
     __tablename__ = 'conversations'
     __table_args__ = {'schema': settings.postgres_schema} 
     __attributes__ = [
-            'id', 'user_id', 'name', 'created_at', 'finished_at'
+            'id', 'user_id', 'name', 'qualified', 'created_at', 'finished_at'
         ]
     
     id                          = sal.Column('id', sal.BigInteger, primary_key=True, autoincrement=True)
     user_id                     = sal.Column('user_id', sal.BigInteger)
     name                        = sal.Column('name', sal.String(length=256))
+    qualified                   = sal.Column('qualified', sal.Boolean, default=False)
     created_at                  = sal.Column('created_at', sal.DateTime(timezone=True), server_default=func.now())
     finished_at                 = sal.Column('finished_at', sal.DateTime(timezone=True))
     
