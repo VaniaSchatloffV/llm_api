@@ -1,19 +1,14 @@
 from app.dependencies import get_settings
 from fastapi import HTTPException
 from io import BytesIO
-from typing import Iterator
+from datetime import datetime, timezone
+from app.crud.DBORMHandler import DB_ORM_Handler
 
 import pandas as pd
 import os
 import random
 
-import json
-from datetime import datetime
-from typing import Optional, Union
-from app.crud.DBORMHandler import DB_ORM_Handler
-from app.models.chat import ConversationObject, MessagesObject
 from app.models.files import FileObject
-from sqlalchemy import desc
 
 
 # Todo lo relacionado a archivos
@@ -111,3 +106,29 @@ def new_file(user_id: int, conversation_id: int, name: str, extension: str):
         db.createTable(File)
         File_id = db.saveObject(p_obj=File, get_obj_attr=True, get_obj_attr_name="id")
         return File_id
+
+def delete_file(file_id: int):
+    filepath = get_file_path(file_id)
+    if os.path.exists(filepath):
+        os.remove(filepath)
+        return True
+    return False
+
+def search_expired_files_and_delete():
+    with DB_ORM_Handler() as db:
+        db.createTable(FileObject)
+        files = db.getObjects(
+            FileObject,
+            FileObject.expires_at <= datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            FileObject.deleted_at == None,
+            columns=[FileObject.id]
+        )
+        for file in files:
+            if delete_file(file.get("id")):
+                db.updateObjects(
+                    FileObject,
+                    FileObject.id == file.get("id"),
+                    deleted_at=datetime.now(timezone.utc)
+                )
+
+    

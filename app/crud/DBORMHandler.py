@@ -119,27 +119,34 @@ class DB_ORM_Handler(object):
             raise e
 
 
-    def getObjects(self, p_obj, *args, defer_cols=[], columns: Optional[list] = None, order_by: Optional[list] = None, limit: Optional[int] = None, offset: Optional[int] = None, **kwargs):
-        
+    def getObjects(self, p_obj, *args, defer_cols=[], columns: Optional[list] = None, order_by: Optional[list] = None, limit: Optional[int] = None, offset: Optional[int] = None, join_conditions: Optional[list] = None, **kwargs):
+    
         sess = self.session()
+        
+        # Inicia la consulta, con columnas si están especificadas
         query = sess.query(*columns) if columns else sess.query(p_obj)
         
-        # Apply filters
+        # Aplica las condiciones de JOIN si se especifican
+        if join_conditions:
+            for join_cond in join_conditions:
+                query = query.join(*join_cond)
+        
+        # Aplica filtros
         if args:
             query = query.filter(*args)
         if kwargs:
             query = query.filter_by(**kwargs)
 
-        # Apply order by
+        # Ordenar por columnas si se especifica
         if order_by:
             query = query.order_by(*order_by)
 
-        # Defer columns if needed
+        # Deferir columnas si es necesario
         if defer_cols:
             for col in defer_cols:
                 query = query.options(defer(col))
 
-        # Apply limit if specified
+        # Aplica límite si se especifica
         if limit:
             query = query.limit(limit)
         
@@ -150,7 +157,7 @@ class DB_ORM_Handler(object):
             results = query.all()
             
             if columns:
-                # Convert tuples to dictionaries or custom objects
+                # Convierte las tuplas a diccionarios u objetos personalizados
                 results = [dict(zip([col.key for col in columns], row)) for row in results]
             return results
 
@@ -234,14 +241,16 @@ class DB_ORM_Handler(object):
                     sess.commit()
                     done = True
                 except Exception as e:
+                    sess.rollback()
                     error = e
                     time.sleep(5)
             
             if not done:
-                sess.rollback()
                 raise RuntimeError("No se pudo almacenar en DB: ", error)
 
         except Exception as e:
+            if sess:
+                sess.rollback()
             raise e
         finally:
             self.session.remove()
@@ -284,6 +293,32 @@ class DB_ORM_Handler(object):
 
         except Exception as e:
             print("DatabaseError:", e)
+            raise e
+        finally:
+            self.session.remove()
+    
+    def destroyObjects(self, p_obj, *args, **kwargs):
+        """
+        Elimina registros de la tabla basada en las condiciones especificadas.
+        
+        :param p_obj: El modelo de la tabla (ORM class).
+        :param args: Condiciones en formato de argumentos posicionales.
+        :param kwargs: Condiciones adicionales en formato de clave-valor.
+        """
+        sess = self.session()
+        try:
+            query = sess.query(p_obj).filter(*args)
+            
+            if kwargs:
+                query = query.filter_by(**kwargs)
+            
+            rows_deleted = query.delete(synchronize_session=False)
+            sess.commit()
+            return rows_deleted
+
+        except Exception as e:
+            print(f"Error al eliminar registros: {e}")
+            sess.rollback()
             raise e
         finally:
             self.session.remove()

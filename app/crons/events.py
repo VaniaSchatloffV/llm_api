@@ -1,12 +1,8 @@
 from fastapi_utilities import repeat_at
-from app.crud.DBORMHandler import DB_ORM_Handler
+from utils.helpers import file_helper
+
 
 @repeat_at(cron="* * * * *")
 def delete_expired():
-    query = """DELETE FROM archivos 
-            WHERE expires_at < NOW();
-            """
-    with DB_ORM_Handler() as db:
-        db.query(query)
-
+    file_helper.search_expired_files_and_delete()
     return

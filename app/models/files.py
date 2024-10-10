@@ -13,10 +13,10 @@ mapper_registry = registry()
 Base = mapper_registry.generate_base()
 
 class FileObject(Base):
-    __tablename__ = 'archivos'
+    __tablename__ = 'files'
     __table_args__ = {'schema': settings.postgres_schema} 
     __attributes__ = [
-            'id', 'user_id','conversation_id' ,'name', 'created_at', 'expires_at', 'extension'
+            'id', 'user_id','conversation_id' ,'name', 'created_at', 'expires_at', 'extension', 'deleted_at'
         ]
     
     id                          = sal.Column('id', sal.BigInteger, primary_key=True, autoincrement=True)
@@ -26,6 +26,7 @@ class FileObject(Base):
     created_at                  = sal.Column('created_at', sal.DateTime(timezone=True), server_default=func.now())
     expires_at                  = sal.Column('expires_at', sal.DateTime(timezone=True), server_default=func.now()+timedelta(days=settings.file_expiration_time_delta)) # Potencialmente cambiar numero de días
     extension                   = sal.Column('extension', sal.String(length=4))
+    deleted_at                  = sal.Column('deleted_at', sal.DateTime(timezone=True), default=None)
     
     def __repr__(self):
         return(f"FileObject (id={self.id}, user_id={self.user_id}, name={self.name}, created_at={self.created_at}, expires_at={self.expires_at}, extension={self.extension})")
