@@ -1,5 +1,5 @@
 from fastapi_utilities import repeat_at
-from utils.helpers import file_helper
+from ..utils.helpers import file_helper
 
 
 @repeat_at(cron="* * * * *")
