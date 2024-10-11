@@ -10,6 +10,8 @@ settings = get_settings()
 retry = 3
 
 def execute_query(query, user_id, conversation_id):
+    print("HOLA BUENAS TARDES")
+    print(query,user_id,conversation_id)
     try:
         with DB_ORM_Handler() as db:
             data = db.query(query, return_data=True)
@@ -17,6 +19,8 @@ def execute_query(query, user_id, conversation_id):
             file_id = file_helper.new_file(user_id, conversation_id, file_name, "csv")
             return {"data": data, "error": None, "file_id": file_id}
     except Exception as e:
+        print("HA OCURRIDO UN ERROR QUE NO MUESTRO: ", e)
+        print("RETURN: ", {"data": None, "error": str(e), "file_id": -1})
         return {"data": None, "error": str(e), "file_id": -1}
 
 def send_prompt_and_process(user_message: str, conversation_id: int, user_id: int):
@@ -35,6 +39,7 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
     messages_for_llm = llm_helper.format_llm_memory(messages)
 
     classifier = llm_helper.LLM_Identify_NL(user_message, messages_for_llm)
+    print("CLASIFICADO COMO: ", classifier)
 
     if classifier != "SQL" and not(classifier in file_helper.OPTIONS):
         conversation_helper.insert_message(conversation_id, "user", user_message)
@@ -46,10 +51,15 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
         conversation_helper.insert_message(conversation_id, "user", user_message, "option")
         last_query = conversation_helper.get_last_query(conversation_id)
         if last_query:
+            print(last_query)
+            print(type(last_query))
+            
             csv_file_id = last_query.get("file_id")
             if classifier == "csv":
+                print("ARMANDO UN CSV")
                 resp = {"text": "El archivo ya está listo", "file_id": csv_file_id, "file_type": classifier}
             elif classifier == "xlsx":
+                print("ARMANDO UN XLSX")
                 xlsx_file_id = file_helper.csv_to_excel(user_id = user_id, conversation_id = conversation_id, file_id_csv = csv_file_id)
                 resp = {"text": "El archivo ya está listo", "file_id": xlsx_file_id, "file_type": classifier}
             conversation_helper.insert_message(conversation_id, "assistant", resp, "file")
@@ -61,6 +71,7 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
         resp = llm_helper.LLM_SQL(question=user_message, messages=messages)
         # Verificacion del mensaje
         verification = llm_helper.LLM_recognize_SQL(resp.get("answer"))
+        print("Verificador: ", verification)
         if verification == "NL":
             conversation_helper.insert_message(conversation_id, "assistant", resp.get("answer"))
             return {"response": resp.get("answer"), "conversation_id": conversation_id}
@@ -74,15 +85,22 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
                 for i in range(retry):
                     error = db_response.get("error")
                     query = llm_helper.LLM_Fix_SQL(user_message, query, error)
+                    print("error:",error)
+                    print("query:",query)
+                    print("error:", i)
                     
                     verification = llm_helper.LLM_recognize_SQL(query.get("answer"))
+                    print(verification)
                     if verification == "SQL":
-                        conversation_helper.insert_message(conversation_id, "assistant", query.get("answer"), "query_review")
+                        #Revisar
                         db_response = execute_query(query.get("answer"), user_id, conversation_id)
+                        print("entre al segundo execute")
+                        conversation_helper.insert_message(conversation_id, "assistant", {"query": query.get("answer"), "file_id": db_response.get("file_id")}, "query_review")
                         if db_response.get("error") is None:
                             success = True
                             break
                     else:
+                        print("como no entre a SQL, significa que soy NL")
                         conversation_helper.insert_message(conversation_id, "assistant", query.get("answer"), "conversation")
                         response_format["response"] = {"text": query.get("answer")}
                         return response_format 

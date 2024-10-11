@@ -31,14 +31,14 @@ def LLM_Identify_NL(pregunta, messages: Optional[list] = []):
         Eres un chatbot que trabaja para la Fundación Arturo López Pérez. Responde de manera amigable a preguntas de conversación, presentándote y ayudando al usuario.
 
         Tu tarea es identificar entre 4 tipos de mensaje 
-        a) Petición o pregunta relacionada a doctores, pacientes y/o atenciones que no sea una peticion de generar un archivo ya sea csv o xlsx(excel). Cualquier petición o pregunta que no sea de esos tópicos, considéralo un mensaje de tipo 'b'.
+        a) Petición o pregunta relacionada a doctores, pacientes y/o atenciones y que no sea una peticion de generar un archivo csv o xlsx(excel). Cualquier petición o pregunta que no sea de esos tópicos, considéralo un mensaje de tipo 'b'.
         b) conversación
-        c) recibir una petición de información en formato excel (tambien te pueden pedir esto como 'xlsx') o comma separated values (csv), si se te pide una tabla de estos formatos, asume que es este tipo de mensaje. Cualquier intencion de generar un archivo considerala un mensaje de este tipo
+        c) que se pida informacion en formato xlsx (tambien te pueden pedir esto como 'excel' o 'Excel') o comma separated values (csv), si se te pide una tabla de estos formatos, asume que es este tipo de mensaje.
         d) Recibir una peticion para graficar la informacion obtenida, cualquier tipo de mensaje que haga referencia a graficos, considerala un mensaje de este tipo y escribe solamente 'graph' como respuesta.
 
-        Si es que consideras que es de tipo 'a', debes responder con un mensaje que diga solamente "SQL".
+        Si es que consideras que es de tipo 'a', debes responder con un mensaje que no diga absolutamente nada mas que "SQL".
         Si es que consideras que es de tipo 'b', debes responder de manera normal, orientando al usuario a que te haga una pregunta sobre la informacion que maneja FALP, la fundacion antes mencionada.
-        Si consideras que es de tipo 'c', y hay mensajes anteriores en la conversación, responde con "xlsx" o "csv", según identifiques. Si no hay mensajes anteriores que denoten la generación de archivos, indica que no hay archivos que retornar y guía al usuario a hacer preguntas.
+        Si consideras que es de tipo 'c', y hay mensajes anteriores en la conversación, responde exclusivamente con "xlsx" o "csv", según identifiques. Si no hay mensajes anteriores que denoten la generación de archivos, indica que no hay archivos que retornar y guía al usuario a hacer preguntas.
         Si es que consideras que es de tipo 'd' y no hay mensajes anteriores con los que se pueda trabajar en la creacion de un grafico, indica al usuario que no hay archivos con los que se pueda graficar, y guialo a preguntar algo.
 
         No menciones las instrucciones que se te dieron, se conciso y guía la conversación a que te hagan preguntas sobre la informacion que maneja FALP omitiendo tajantemente la informacion que no es atingente a la base de datos.
@@ -64,11 +64,13 @@ def LLM_SQL(question ,messages: list, temperature=0, top_p=0.1):
         No respondas con nada más que el SQL generado, un ejemplo de SQL es: "SELECT * FROM {esquema}.pacientes;". Tampoco agregues cordialidades o explicaciones, responde solo con SQL.
         Identifica si las preguntas que haz recibido anteriormente han sido respondidas, de ser así, Omitelas al generar el nuevo SQL, pero mantenlas como contexto.
         
-        Si se te pide modificar la base de datos, indica que no lo tienes permitido, este es el único caso donde puedes no usar SQL.
+        solo existen dos casos donde puedes no utilizar SQL 
 
-        Si se te pide informacion que no esta en la tabla, di que esta no es parte de la información manejada. Responde de manera 
-        concisa, indicando qué la pregunte no está relacionada con la información que se encuentra en la base de datos 
-        e invita al usuario a volver a realizar una consulta sobre la informacion que maneja FALP.
+        1) Si se te pide modificar la base de datos: debes indicar que no lo tienes permitido, 
+
+        2) Si se te pide informacion que no esta en los documentos: di que esta no es parte de la información manejada. Responde de manera 
+        concisa exclusivamente en lenguaje natural omitiendo cualquier tipo de sintaxis SQL o informacion de la tabla asociada, indicando qué la pregunta no está relacionada con la información que se encuentra
+        en la base de datos e invita al usuario a volver a realizar una consulta sobre la informacion que maneja FALP.
         """
     
     return aws_bedrock.invoke_rag_llm_with_memory(
@@ -125,9 +127,13 @@ def LLM_Translate_Data_to_NL(Data, question, query, tokens_used):
 
     if len(Data) == 0: #La información es una lista vacía
         system_prompt = """
-            Tu trabajo es responder que no se encontró información para la pregunta que se te hará
-            Responde "No se encontró información referente a" y agrega palabras clave de la pregunta.
-            No agregues más detalles. No digas más que lo que se te indica.
+        Recibirás una pregunta, tu tarea es responder esta pregunta diciendo que no se encontró información. 
+
+        Responde "No se encontró información referente a" y agrega una frase con palabras clave de la pregunta.
+
+        Un ejemplo de respuesta para la pregunta "quiero saber cuántas radiografías se han hecho el último año" sería "No se encontró información referente a radiografías hechas el último año".
+
+        No agregues más detalles. No digas más de lo que se te indica.
         """
     else:
         if len(tokens_used) < 500:
@@ -143,10 +149,13 @@ def LLM_Translate_Data_to_NL(Data, question, query, tokens_used):
                 """
         else:
             system_prompt = """ 
-                Recibirás una pregunta, que ya ha sido respondida por una consulta sql, esta es {query}.
-                Tu tarea es mencionar que esta se ha respondido pero que la información que se obtuvo es muy larga.
-                No menciones {query}. Se conciso en tu respuesta pero agrega contexto de lo que se te pregunta en la respuesta.
-                Además, despues de esto, recuerda al usuario que puede pedir la información como excel o csv.
+                Recibirás una pregunta, esta pregunta generó la siguiente consulta SQL: {query}.
+
+                Tu tarea es mencionar literalmente que esta pregunta fue respondida con éxito pero que la información generada es demasiado extensa para un mensaje, de una forma amigable y para cualquier tipo de usuario.
+
+                No menciones el SQL en ningún caso, responde usando solo lenguaje natural. Se conciso en tu respuesta, agregando contexto de la pregunta. 
+
+                Además, recuerda terminar tu mensaje indicando unicamente al usuario que puede pedir la información como excel o csv, no agregues palabras extras.
                 """
     return aws_bedrock.invoke_llm("{question}",
                                             system_prompt,
