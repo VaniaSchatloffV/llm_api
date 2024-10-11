@@ -26,6 +26,9 @@ class TokenData(BaseModel):
 
 async def verify_token(token: str = Depends(oauth2_scheme)):
     try:
+        print(settings.environment, type(settings.environment))
+        if settings.environment == "dev":
+            return {"sub": "development_user"}
         response = requests.get(f'https://{AUTH0_DOMAIN}/.well-known/jwks.json')
         jwks = response.json()
         unverified_header = jwt.get_unverified_header(token)
