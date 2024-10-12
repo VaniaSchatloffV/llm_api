@@ -108,6 +108,7 @@ def get_last_query(conversation_id: int):
         )
         if messages:
             message = messages[0]
+            print(message)
             return message.get("message").get("content")
         return []
 

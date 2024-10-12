@@ -103,6 +103,8 @@ def invoke_rag_llm_with_memory(rag_data: list,
         memory.pop()
     parameters["context"] = retriever
     parameters["chat_history"] = memory
+    print("PARAMETROS: ", parameters)
+    print(type(parameters))
     response = rag_chain.invoke(parameters)
     return response
 

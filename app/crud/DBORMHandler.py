@@ -95,7 +95,7 @@ class DB_ORM_Handler(object):
             try:
                 p_object.metadata.create_all(engine)
             except Exception as e:
-                print(e)
+                print("ERROR:", e)
                 return False
             return True
 
