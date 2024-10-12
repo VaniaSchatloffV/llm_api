@@ -7,6 +7,8 @@ from app.crud.DBORMHandler import DB_ORM_Handler
 import pandas as pd
 import os
 import random
+from sqlalchemy.orm import aliased
+from sqlalchemy import and_
 
 from app.models.files import FileObject
 
@@ -80,12 +82,24 @@ def download_file(file_id: int) -> BytesIO:
         raise HTTPException(status_code=404, detail="File not found")
     return file_iterator(file_path)
 
-def csv_to_excel(user_id : int, conversation_id : int, file_id_csv : int):
+def csv_to_excel(user_id: int, conversation_id: int, file_id_csv: int):
+    with DB_ORM_Handler() as db:
+        subquery = db.session.query(FileObject.name).filter(FileObject.id == file_id_csv).subquery()
+
+        existence = db.getObjects(
+            FileObject,
+            FileObject.name == subquery.c.name,
+            FileObject.extension == 'xlsx',
+            columns=[FileObject.id]
+        )
+        if existence:
+            return existence.pop().get("id")
     file_path = get_file_path(file_id_csv)
     read_file_product = pd.read_csv(file_path)
-    read_file_product.to_excel(file_path.replace("csv", "xlsx"), index = None, header=True)
-    name = file_path.split('\\').pop().split(".")[0]
-    file_id = new_file(user_id = user_id, conversation_id = conversation_id, name = name, extension = "xlsx")
+    excel_file_path = file_path.replace(".csv", ".xlsx")
+    read_file_product.to_excel(excel_file_path, index=None, header=True)
+    name = os.path.splitext(os.path.basename(file_path))[0]
+    file_id = new_file(user_id=user_id, conversation_id=conversation_id, name=name, extension="xlsx")
     return file_id
 
 def file_exists(file_id: str):

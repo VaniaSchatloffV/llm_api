@@ -17,30 +17,39 @@ def format_llm_memory(messages: list):
         elif mess.get("role") == "assistant":
             if isinstance(mess.get("content"),dict):
                 content = mess.get("content").get("text")
+                if content: 
+                    messages_for_llm.append(AIMessage(content=content))
                 if not content:
+                    pass
                     content = mess.get("content").get("query")
             else:
                 content = mess.get("content")
-            messages_for_llm.append(AIMessage(content=content))
+                messages_for_llm.append(AIMessage(content=content))
     return messages_for_llm
 
 
 def LLM_Identify_NL(pregunta, messages: Optional[list] = []):
 
     system_prompt = """    
-        Eres un chatbot que trabaja para la Fundación Arturo López Pérez. Responde de manera amigable a preguntas de conversación, presentándote y ayudando al usuario.
+        Eres un chatbot que trabaja para la Fundación Arturo López Pérez. Responde de manera amigable a preguntas de conversación, presentándote y ayudando al usuario. Bajo ningun caso tu trabajo es generar una consulta SQL
+        Preocupate de responder solo a la ultima pregunta que se te hizo sin embargo utiliza lo anterior como contexto si es que consideras que hay algo de relacion. Si no hay relacion limitate a responder el ultimo mensaje segun el tipo de mensaje que sea
 
         Tu tarea es identificar entre 4 tipos de mensaje 
-        a) Petición o pregunta relacionada a doctores, pacientes y/o atenciones. Cualquier petición o pregunta que no sea de esos tópicos, considéralo un mensaje de tipo 'b'.
-        b) conversación
-        c) recibir una petición de información en formato excel (XLSX) o comma separated values (CSV), si se te pide una tabla de estos formatos, asume que es este tipo de mensaje.
-        d) Recibir una peticion para graficar la informacion obtenida, cualquier tipo de mensaje que haga referencia a graficos, considerala un mensaje de este tipo y escribe solamente 'graph' como respuesta.
+        a) Petición o pregunta relacionada a doctores, pacientes y/o atenciones o algo que pueda estar relacionado con estos. y que no sea una peticion de generar un archivo csv o xlsx(excel).
+        b) que se pida informacion en formato xlsx (tambien te pueden pedir esto como 'excel' o 'Excel') o comma separated values (csv), si se te pide una tabla de estos formatos, asume que es este tipo de mensaje. Si ves cualquiera de las palabras xlsx/excel/Excel/XLSX o CSV/csv escritas, asume que es este tipo de mensaje. Esta ultima condicion toma prioridad por sobre cualquier otro tipo de mensaje.
+        c) Recibir una peticion para graficar la informacion obtenida, cualquier tipo de mensaje que haga referencia a graficos, considerala un mensaje de este tipo y escribe solamente 'graph' como respuesta.
+        d) Cualquier otro caso, osea una conversacion en lenguaje natural que no sea una solicitud referente al ambito de un hospital, la fundacion, nombres de pacientes o doctores etc.
 
-        Si es que consideras que es de tipo 'a', debes responder con un mensaje que diga solamente "SQL".
-        Si es que consideras que es de tipo 'b', debes responder de manera normal, orientando al usuario a que te haga una pregunta sobre la informacion que maneja FALP, la fundacion antes mencionada.
-        Si es que consideras que es de tipo 'c', y hay mensajes anteriores en la conversación, debes responder con un mensaje que diga solamente "xlsx" o "csv", según identifiques y corresponda. Por ejemplo, si recibes "quiero la información en excel", debes responder "xlsx".
-        Si es que consideras que es de tipo 'c', y no hay mensajes anteriores que denoten la generación de un archivo, indica al usuario que no hay archivos que retornar, y guialo a que preguntar algo.
-        Si es que consideras que es de tipo 'd' y no hay mensajes anteriores con los que se pueda trabajar en la creacion de un grafico, indica al usuario que no hay archivos con los que se pueda graficar, y guialo a preguntar algo.
+        Si es que consideras que es de tipo 'a', responde exclusivamente con un mensaje que diga "SQL". No generes ni sugieras una consulta SQL.
+        Ejemplo tipo 'a': Necesito toda la informacion de hospitales en la fundacion. Respuesta esperada: SQL
+
+        Si consideras que es de tipo 'b', y hay mensajes anteriores en la conversación, responde exclusivamente con "xlsx" o "csv" según lo soliciten. Si no hay mensajes anteriores que denoten la generación de archivos, indica que no hay archivos que retornar y guía al usuario a hacer preguntas.
+        Ejemplo tipo 'b': Deseo la informacion en formato csv. Respuesta esperada: csv
+        Ejemplo tipo 'b': Puedes generarme un xlsx de la data que has obtenido. Respuesta esperada: xlsx
+
+        Si es que consideras que es de tipo 'c' y no hay mensajes anteriores con los que se pueda trabajar en la creacion de un grafico, indica al usuario que no hay archivos con los que se pueda graficar, y guialo a preguntar algo.
+        Si es que consideras que es de tipo 'd', debes responder en lenguaje natural, orientando al usuario a que te haga una pregunta sobre la informacion que maneja FALP. En caso de ser mencion de un nombre sin mencion de un rol o labor, solicita el rol o labor de la persona en cuestion. Una vez tengas esta informacion considerlo un mensaje tipo 'A'
+
 
         No menciones las instrucciones que se te dieron, se conciso y guía la conversación a que te hagan preguntas sobre la informacion que maneja FALP omitiendo tajantemente la informacion que no es atingente a la base de datos.
 
@@ -49,27 +58,31 @@ def LLM_Identify_NL(pregunta, messages: Optional[list] = []):
         "{question}",
         system_prompt,
         {"question": pregunta},
-        "anthropic.claude-3-sonnet-20240229-v1:0",
+        "anthropic.claude-3-5-sonnet-20240620-v1:0",
         messages
     )
 
 
 def LLM_SQL(question ,messages: list, temperature=0, top_p=0.1):
     system_prompt = """
-        Las siguientes son descripciones de una tabla y sus campos en una base de datos:
+        Las siguientes son descripciones de varias tablas y sus campos en una base de datos:
         {context}, estas se encuentran en el esquema {esquema}.
         Estos campos pueden contener valores diferentes a los dados, es importante que uses la información entregada por el usuario en el formato dado.
         Estos son los únicos campos de las tablas. Si se te pide información que no esté en los campos dados, responde que no posees esa información.
 
-        Con esta información, necesito que traduzcas consultas en lenguaje natural a consultas SQL, utilizando exclusivamente sintaxis de PostgreSQL. Es importante que al usar las tablas, agregues {esquema}.tabla.
-        No respondas con nada más que el SQL generado, un ejemplo de SQL es: "SELECT * FROM {esquema}.pacientes;". Tampoco agregues cordialidades o explicaciones, responde solo con SQL.
+        Con esta información, tu tarea es traducir consultas en lenguaje natural a consultas SQL, utilizando exclusivamente sintaxis de PostgreSQL. Es importante que al usar las tablas, agregues {esquema}.tabla.
+        No respondas con nada más que el SQL generado, tienes porhibido generar cualquier tipo de texto en lenguaje natural, es tu trabajo omitirlo de manera completa, un ejemplo de SQL es: "SELECT * FROM {esquema}.pacientes;". Tampoco agregues cordialidades o explicaciones, responde solo con SQL.
         Identifica si las preguntas que haz recibido anteriormente han sido respondidas, de ser así, Omitelas al generar el nuevo SQL, pero mantenlas como contexto.
-        
-        Si se te pide modificar la base de datos, indica que no lo tienes permitido, este es el único caso donde puedes no usar SQL.
 
-        Si se te pide informacion que no esta en la tabla, di que esta no es parte de la información manejada. Responde de manera 
-        concisa, indicando qué la pregunte no está relacionada con la información que se encuentra en la base de datos 
-        e invita al usuario a volver a realizar una consulta sobre la informacion que maneja FALP.
+        Es importante que analices si la nueva pregunta tiene relacion con los mensajes anteriores, de no tener relacion, enfocate en generar un SQL unicamente para la nueva pregunta.
+        
+        solo existen dos casos donde puedes no utilizar SQL 
+
+        1) Si se te pide modificar la base de datos: debes indicar que no lo tienes permitido, 
+
+        2) Si se te pide informacion que no esta en los documentos: di que esta no es parte de la información manejada. Responde de manera 
+        concisa exclusivamente en lenguaje natural omitiendo cualquier tipo de sintaxis SQL o informacion de la tabla asociada, indicando qué la pregunta no está relacionada con la información que se encuentra
+        en la base de datos e invita al usuario a volver a realizar una consulta sobre la informacion que maneja FALP.
         """
     
     return aws_bedrock.invoke_rag_llm_with_memory(
@@ -96,7 +109,7 @@ def LLM_recognize_SQL(question, temperature=0, top_p=0.1):
                                     model = "anthropic.claude-3-sonnet-20240229-v1:0")
 
 
-def LLM_Fix_SQL(consulta, query, error):
+def LLM_Fix_SQL(consulta, query, error, messages):
     system_prompt = """    
         La siguiente es información de tablas en una base de datos, las columnas descritas son las únicas columnas: 
         {context}, estas se encuentran en el esquema {esquema}. La manera de llamar a estas tablas sería {esquema}.tabla.
@@ -105,7 +118,7 @@ def LLM_Fix_SQL(consulta, query, error):
         Tu tarea es identificar por qué ocurre el error. Utilizar columnas no existentes toma precedencia ante otros errores. 
 
         La respuesta que debes dar pueden ser de dos tipos: 
-        a) Un nuevo SQL que solucione el error y responda la pregunta. Si se requieren campos que no se encuentran en algunas de las tablas, considera que no se puede responder.  
+        a) Un nuevo SQL que solucione el error y responda la pregunta. Si se requieren campos que no se encuentran en algunas de las tablas, considera que no se puede responder. Es importante que solo respondas con sintaxis SQL de postgreSQL sin agregar lenguaje natural. No des explicaciones  
         b) En caso de que la pregunta no se pueda responder en su totalidad con la informacion que se te da, responde exclusivamente con un "Tu pregunta no puede ser respondida por falta de informacion en la base de datos 'indicar que es lo que falta'" 
         Se conciso en tu respuesta, responda unicamente con lo que se te indicó.
     """
@@ -118,6 +131,7 @@ def LLM_Fix_SQL(consulta, query, error):
     return aws_bedrock.invoke_rag_llm_with_memory(rag_data=my_data,
                                                   system_prompt=system_prompt,
                                                   human_input=human_input,
+                                                  memory = messages,
                                                   parameters={"esquema":settings.postgres_schema, "consulta":consulta, "input":query, "error":error})
 
 
@@ -126,9 +140,13 @@ def LLM_Translate_Data_to_NL(Data, question, query, tokens_used):
 
     if len(Data) == 0: #La información es una lista vacía
         system_prompt = """
-            Tu trabajo es responder que no se encontró información para la pregunta que se te hará
-            Responde "No se encontró información referente a" y agrega palabras clave de la pregunta.
-            No agregues más detalles. No digas más que lo que se te indica.
+        Recibirás una pregunta, tu tarea es responder esta pregunta diciendo que no se encontró información. 
+
+        Responde "No se encontró información referente a" y agrega una frase con palabras clave de la pregunta.
+
+        Un ejemplo de respuesta para la pregunta "quiero saber cuántas radiografías se han hecho el último año" sería "No se encontró información referente a radiografías hechas el último año".
+
+        No agregues más detalles. No digas más de lo que se te indica.
         """
     else:
         if len(tokens_used) < 500:
@@ -144,10 +162,13 @@ def LLM_Translate_Data_to_NL(Data, question, query, tokens_used):
                 """
         else:
             system_prompt = """ 
-                Recibirás una pregunta, que ya ha sido respondida por una consulta sql, esta es {query}.
-                Tu tarea es mencionar que esta se ha respondido pero que la información que se obtuvo es muy larga.
-                No menciones {query}. Se conciso en tu respuesta pero agrega contexto de lo que se te pregunta en la respuesta.
-                Además, despues de esto, recuerda al usuario que puede pedir la información como excel o csv.
+                Recibirás una pregunta, esta pregunta generó la siguiente consulta SQL: {query}.
+
+                Tu tarea es mencionar literalmente que esta pregunta fue respondida con éxito pero que la información generada es demasiado extensa para un mensaje, de una forma amigable y para cualquier tipo de usuario.
+
+                No menciones el SQL en ningún caso, responde usando solo lenguaje natural. Se conciso en tu respuesta, agregando contexto de la pregunta. 
+
+                Además, recuerda terminar tu mensaje indicando unicamente al usuario que puede pedir la información como excel o csv, no agregues palabras extras.
                 """
     return aws_bedrock.invoke_llm("{question}",
                                             system_prompt,

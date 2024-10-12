@@ -95,7 +95,7 @@ class DB_ORM_Handler(object):
             try:
                 p_object.metadata.create_all(engine)
             except Exception as e:
-                print(e)
+                print("DB_ORM_Handler error:", e)
                 return False
             return True
 
@@ -162,7 +162,7 @@ class DB_ORM_Handler(object):
             return results
 
         except Exception as e:
-            print("DatabaseError:", e)
+            print("DB_ORM_Handler error:", e)
             raise e
         finally:
             self.session.remove()
@@ -232,7 +232,6 @@ class DB_ORM_Handler(object):
                     sess.rollback()
                     if not integrity_merge:
                         raise
-                    print("Duplicate entry: Trying merge")
                     if p_objs is not None:
                         for obj in p_objs:
                             sess.merge(obj)
@@ -292,7 +291,7 @@ class DB_ORM_Handler(object):
             return result
 
         except Exception as e:
-            print("DatabaseError:", e)
+            print("DB_ORM_Handler error:", e)
             raise e
         finally:
             self.session.remove()
@@ -317,7 +316,7 @@ class DB_ORM_Handler(object):
             return rows_deleted
 
         except Exception as e:
-            print(f"Error al eliminar registros: {e}")
+            print("DB_ORM_Handler error:", e)
             sess.rollback()
             raise e
         finally:
