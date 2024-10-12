@@ -23,27 +23,19 @@ def rag_retriever(rag_data: list, formatted_human_input: str, radio_busqueda: Op
     bedrock_embeddings = BedrockEmbeddings(model_id=embeddings_model, client=bedrock)
 
     document_embedding = bedrock_embeddings.embed_documents(texts=rag_data)
-    #print("de: ", document_embedding)
     question_embedding = bedrock_embeddings.embed_query(formatted_human_input)
-    #print("qe: ", question_embedding)
 
     document_array = np.array(document_embedding)
     document_array_norm = document_array/np.linalg.norm(document_array, axis=1, keepdims=True)
-    #print("dan: ", document_array_norm)
 
     question_array = np.array(question_embedding)
     question_array_norm = question_array/np.linalg.norm(question_array, keepdims= True)
     question_array_norm = question_array_norm.reshape(1, -1)
-    #print("qan: ", question_array_norm)
 
     index = faiss.IndexFlatIP(document_array_norm.shape[1])
     index.add(document_array_norm)
 
-    # print(distances)
-    # print(indices)
     lims, D, I = index.range_search(question_array_norm, radio_busqueda)
-    
-    # print("\n", D, "\n", I)
 
     filtered_documents = [] 
 
