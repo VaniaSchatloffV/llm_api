@@ -1,5 +1,6 @@
 # DB_ORM_Handler
 from app.dependencies import get_settings
+from app.logger import LOGGER
 
 import time
 from typing import Optional, Type
@@ -44,6 +45,7 @@ def timeout(max_timeout):
     return timeout_decorator
 
 class TableDoesNotExist(Exception):
+    LOGGER.error("Tabla no existe")
     pass
 
 class DB_ORM_Handler(object):
@@ -52,6 +54,7 @@ class DB_ORM_Handler(object):
         try:
             self.engine = sal.create_engine(conn_str, pool_reset_on_return=None,
     isolation_level="AUTOCOMMIT",pool_pre_ping=True, pool_recycle=300, poolclass=NullPool )
+            LOGGER.debug(f"Creando instancia DB_ORM_Handler: {conn_str}")
         except Exception as e:
             raise e
 
@@ -74,7 +77,9 @@ class DB_ORM_Handler(object):
         engine = self.getEngine()
         ins = sal.inspect(engine)
         if not ins.has_table(table_name):
+            LOGGER.debug(f"Tabla {table_name} no existe")
             return False
+        LOGGER.debug(f"Tabla {table_name} existe")
         return True
 
     def getTable(self,table_name):
@@ -82,7 +87,6 @@ class DB_ORM_Handler(object):
             engine = self.getEngine()
             metadata = sal.MetaData()
             table = sal.Table(table_name, metadata, autoload_with=engine)
-
             return table
         raise TableDoesNotExist(table_name)
 
@@ -94,8 +98,9 @@ class DB_ORM_Handler(object):
             engine = self.getEngine()
             try:
                 p_object.metadata.create_all(engine)
+                LOGGER.debug(f"Tabla {p_object.__tablename__} creada con éxito")
             except Exception as e:
-                print("DB_ORM_Handler error:", e)
+                LOGGER.error(f"DB_ORM_HANDLER: Tabla {p_object.__tablename__} no ha podido ser creada. ERROR : {e}")
                 return False
             return True
 
@@ -107,6 +112,7 @@ class DB_ORM_Handler(object):
         """
         try:
             statement = text(query)
+            LOGGER.debug(f"Ejecutando query: {statement}")
             rs = self.session.execute(statement)
             if return_data:
                 # Obtener nombres de columnas
@@ -116,6 +122,7 @@ class DB_ORM_Handler(object):
             return rs
 
         except Exception as e:
+            LOGGER.error(f"DB_ORM_HANDLER: Error al ejecutar consulta. ERROR = {e}")
             raise e
 
 
@@ -162,7 +169,7 @@ class DB_ORM_Handler(object):
             return results
 
         except Exception as e:
-            print("DB_ORM_Handler error:", e)
+            LOGGER.error(f"DB_ORM_HANDLER: Error al obtener objetos. ERROR = {e}")
             raise e
         finally:
             self.session.remove()
@@ -197,6 +204,7 @@ class DB_ORM_Handler(object):
         try:
             rs = sess.query(p_obj).filter(*args).update(kw_args)
             sess.commit()
+            LOGGER.debug(f"{rs} objetos actualizados")
         except Exception as e:
             raise e
         finally:
@@ -248,6 +256,7 @@ class DB_ORM_Handler(object):
                 raise RuntimeError("No se pudo almacenar en DB: ", error)
 
         except Exception as e:
+            LOGGER.error(f"DB_ORM_HANDLER: Error al guardar objetos. ERROR = {e}")
             if sess:
                 sess.rollback()
             raise e
@@ -291,7 +300,7 @@ class DB_ORM_Handler(object):
             return result
 
         except Exception as e:
-            print("DB_ORM_Handler error:", e)
+            LOGGER.error(f"DB_ORM_HANDLER: Error al ejecutar consulta COUNT. ERROR = {e}")
             raise e
         finally:
             self.session.remove()
@@ -316,7 +325,7 @@ class DB_ORM_Handler(object):
             return rows_deleted
 
         except Exception as e:
-            print("DB_ORM_Handler error:", e)
+            LOGGER.error(f"DB_ORM_HANDLER: Error al eliminar objetos. ERROR = {e}")
             sess.rollback()
             raise e
         finally:
