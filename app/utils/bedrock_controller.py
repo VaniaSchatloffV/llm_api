@@ -10,7 +10,6 @@ settings = get_settings()
 retry = 3
 
 def execute_query(query, user_id, conversation_id):
-    #print(query,user_id,conversation_id)
     try:
         with DB_ORM_Handler() as db:
             data = db.query(query, return_data=True)
@@ -34,9 +33,7 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
     # Se obtienen mensajes anteriores para la llm
     messages = conversation_helper.get_messages(conversation_id)
     messages_for_llm = llm_helper.format_llm_memory(messages)
-    #print("MFL:", messages_for_llm)
     classifier = llm_helper.LLM_Identify_NL(user_message, messages_for_llm)
-    #print("CLASIFICADO COMO: ", classifier)
 
     if classifier != "SQL" and not(classifier in file_helper.OPTIONS):
         conversation_helper.insert_message(conversation_id, "user", user_message)
@@ -48,8 +45,6 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
         conversation_helper.insert_message(conversation_id, "user", user_message, "option")
         last_query = conversation_helper.get_last_query(conversation_id)
         if last_query:
-            #print(last_query)
-            #print(type(last_query))
             
             csv_file_id = last_query.get("file_id")
             if classifier == "csv":
@@ -66,10 +61,8 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
         messages_for_llm = llm_helper.format_llm_memory(messages)
         conversation_helper.insert_message(conversation_id, "user", user_message)
         resp = llm_helper.LLM_SQL(question=user_message, messages=messages_for_llm)
-        #print(resp)
         # Verificacion del mensaje
         verification = llm_helper.LLM_recognize_SQL(resp.get("answer"))
-        #print("Verificador: ", verification)
         if verification == "NL":
             conversation_helper.insert_message(conversation_id, "assistant", resp.get("answer"))
             return {"response": resp.get("answer"), "conversation_id": conversation_id}
@@ -82,7 +75,6 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
                 success = False
                 for i in range(retry):
                     error = db_response.get("error")
-                    #print("error:", i, error)
                     # Se actualiza memoria
                     messages = conversation_helper.get_messages_for_llm(conversation_id)
                     messages_for_llm = llm_helper.format_llm_memory(messages)
@@ -92,7 +84,6 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
                     
                     verification = llm_helper.LLM_recognize_SQL(query.get("answer"))
                     if verification == "SQL":
-                        #Revisar
                         db_response = execute_query(query.get("answer"), user_id, conversation_id)
                         conversation_helper.insert_message(conversation_id, "assistant", {"query": query.get("answer"), "file_id": db_response.get("file_id")}, "query_review")
                         if db_response.get("error") is None:
