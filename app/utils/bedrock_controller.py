@@ -35,7 +35,7 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
     }
 
     # Se obtienen mensajes anteriores para la llm
-    messages = conversation_helper.get_messages_for_llm(conversation_id)
+    messages = conversation_helper.get_messages(conversation_id)
     messages_for_llm = llm_helper.format_llm_memory(messages)
     print("MFL:", messages_for_llm)
     classifier = llm_helper.LLM_Identify_NL(user_message, messages_for_llm)
@@ -67,6 +67,8 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
         else:
             return {"response": "No hay información que retornar, haz una pregunta.", "conversation_id": conversation_id}
     else:
+        messages = conversation_helper.get_messages_for_llm(conversation_id)
+        messages_for_llm = llm_helper.format_llm_memory(messages)
         conversation_helper.insert_message(conversation_id, "user", user_message)
         resp = llm_helper.LLM_SQL(question=user_message, messages=messages_for_llm)
         print(resp)
@@ -86,6 +88,7 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
                 for i in range(retry):
                     error = db_response.get("error")
                     print("error:", i, error)
+                    # Se actualiza memoria
                     messages = conversation_helper.get_messages_for_llm(conversation_id)
                     messages_for_llm = llm_helper.format_llm_memory(messages)
                     query = llm_helper.LLM_Fix_SQL(user_message, query, error, messages_for_llm)
