@@ -14,3 +14,7 @@ def download(metric: Metric, token_data: TokenData = Depends(verify_token)):
     questions = metric.questions
     conversation_id = metric.conversation_id
     metrics_helper.upload_metric(conversation_id, questions, calification)
+
+@router.get("/getTable/")
+def get_metric_table():
+    return metrics_helper.get_metric_table()
