@@ -48,7 +48,7 @@ class MessagesObject(Base):
     
     id                          = sal.Column('id', sal.BigInteger, primary_key=True, autoincrement=True)
     conversation_id             = sal.Column('conversation_id', sal.BigInteger)
-    message                     = sal.Column('name', sal.JSON())
+    message                     = sal.Column('message', sal.JSON())
     type                        = sal.Column('type', sal.String(50))
     created_at                  = sal.Column('created_at', sal.DateTime(timezone=True), server_default=func.now())
     

@@ -144,6 +144,6 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
             tokens_used = encoding.encode(str(data))
             nl_response = llm_helper.LLM_Translate_Data_to_NL(data, user_message, query, tokens_used)
             response_format["response"] = {"text": nl_response}
-            conversation_helper.insert_message(conversation_id, "assistant", response_format.get("response"), "response")
+            conversation_helper.insert_message(conversation_id, "assistant", nl_response, "response")
                         
             return response_format

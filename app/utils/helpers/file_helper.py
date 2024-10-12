@@ -107,8 +107,15 @@ def csv_to_excel(user_id: int, conversation_id: int, file_id_csv: int):
     return file_id
 
 def file_exists(file_id: str):
-    file_path = get_file_path(file_id)
-    return os.path.isfile(file_path)
+    with DB_ORM_Handler() as db:
+        count = db.countObjects(
+            FileObject,
+            FileObject.id == file_id,
+            FileObject.deleted_at == None
+        )
+    if count == 0:
+        return False
+    return True
 
 def new_file(user_id: int, conversation_id: int, name: str, extension: str):
     """
