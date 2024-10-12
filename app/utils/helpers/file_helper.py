@@ -1,19 +1,16 @@
 from app.dependencies import get_settings
 from fastapi import HTTPException
 from io import BytesIO
-from typing import Iterator
+from datetime import datetime, timezone
+from app.crud.DBORMHandler import DB_ORM_Handler
 
 import pandas as pd
 import os
 import random
+from sqlalchemy.orm import aliased
+from sqlalchemy import and_, desc
 
-import json
-from datetime import datetime
-from typing import Optional, Union
-from app.crud.DBORMHandler import DB_ORM_Handler
-from app.models.chat import ConversationObject, MessagesObject
 from app.models.files import FileObject
-from sqlalchemy import desc
 
 
 # Todo lo relacionado a archivos
@@ -89,12 +86,24 @@ def download_file(file_id: int) -> BytesIO:
         raise HTTPException(status_code=404, detail="File not found")
     return file_iterator(file_path)
 
-def csv_to_excel(user_id : int, conversation_id : int, file_id_csv : int):
+def csv_to_excel(user_id: int, conversation_id: int, file_id_csv: int):
+    with DB_ORM_Handler() as db:
+        subquery = db.session.query(FileObject.name).filter(FileObject.id == file_id_csv).subquery()
+
+        existence = db.getObjects(
+            FileObject,
+            FileObject.name == subquery.c.name,
+            FileObject.extension == 'xlsx',
+            columns=[FileObject.id]
+        )
+        if existence:
+            return existence.pop().get("id")
     file_path = get_file_path(file_id_csv)
     read_file_product = pd.read_csv(file_path)
-    read_file_product.to_excel(file_path.replace("csv", "xlsx"), index = None, header=True)
-    name = file_path.split('\\').pop().split(".")[0]
-    file_id = new_file(user_id = user_id, conversation_id = conversation_id, name = name, extension = "xlsx")
+    excel_file_path = file_path.replace(".csv", ".xlsx")
+    read_file_product.to_excel(excel_file_path, index=None, header=True)
+    name = os.path.splitext(os.path.basename(file_path))[0]
+    file_id = new_file(user_id=user_id, conversation_id=conversation_id, name=name, extension="xlsx")
     return file_id
 
 def file_exists(file_id: str):
@@ -115,17 +124,6 @@ def new_file(user_id: int, conversation_id: int, name: str, extension: str):
         db.createTable(File)
         File_id = db.saveObject(p_obj=File, get_obj_attr=True, get_obj_attr_name="id")
         return File_id
-
-def update_file(file_id: int, extension: str):
-    """
-    Función para actualizar extensión de archivo.
-    """
-    with DB_ORM_Handler() as db:
-        return db.updateObjects(
-            FileObject,
-            FileObject.id == file_id,
-            extension = extension
-        )
     
 def get_last_file_from_conversation(conversation_id):
     with DB_ORM_Handler() as db:
@@ -136,3 +134,29 @@ def get_last_file_from_conversation(conversation_id):
             limit = 1    
         )
     return files
+
+def delete_file(file_id: int):
+    filepath = get_file_path(file_id)
+    if os.path.exists(filepath):
+        os.remove(filepath)
+        return True
+    return False
+
+def search_expired_files_and_delete():
+    with DB_ORM_Handler() as db:
+        db.createTable(FileObject)
+        files = db.getObjects(
+            FileObject,
+            FileObject.expires_at <= datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            FileObject.deleted_at == None,
+            columns=[FileObject.id]
+        )
+        for file in files:
+            if delete_file(file.get("id")):
+                db.updateObjects(
+                    FileObject,
+                    FileObject.id == file.get("id"),
+                    deleted_at=datetime.now(timezone.utc)
+                )
+
+    

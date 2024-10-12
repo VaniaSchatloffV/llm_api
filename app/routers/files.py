@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from app.utils.helpers import file_helper
+from app.utils.auth import TokenData, verify_token
 import os
 
 from app.schemas.files import File
@@ -8,7 +9,7 @@ from app.schemas.files import File
 router = APIRouter()
 
 @router.get("/download/")
-def download(file: File):
+def download(file: File, token_data: TokenData = Depends(verify_token)):
     return StreamingResponse(
         file_helper.download_file(file.file_id),
         #media_type="csv",
@@ -16,7 +17,7 @@ def download(file: File):
     )
 
 # @router.get("/download/xlsx/")
-# def download_xlsx(file: File):
+# def download_xlsx(file: File, token_data: TokenData = Depends(verify_token)):
 #     return StreamingResponse(
 #         file_helper.download_file(file.file_id),
 #         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -26,5 +27,5 @@ def download(file: File):
 
 
 @router.get("/check/")
-def download_xlsx(file: File):
+def download_xlsx(file: File, token_data: TokenData = Depends(verify_token)):
     return file_helper.file_exists(file_id=file.file_id, file_type=file.file_type)

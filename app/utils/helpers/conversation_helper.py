@@ -68,7 +68,7 @@ def get_conversations(user_id: int):
             ConversationObject.user_id == user_id,
             defer_cols=[],
             order_by=[ConversationObject.id.desc()],
-            columns = [ConversationObject.id, ConversationObject.name, ConversationObject.created_at]
+            columns = [ConversationObject.id, ConversationObject.name, ConversationObject.created_at, ConversationObject.qualified]
         )
         if not conversations:
             return []

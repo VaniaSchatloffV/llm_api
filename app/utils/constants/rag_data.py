@@ -57,7 +57,6 @@ my_data = [
     'id' de tipo int: esta es la clave primaria de la tabla.
     'nombre' de tipo varchar: este campo corresponde al nombre del examen. Algunos ejemplos de entradas son: 'Hemograma', 'Tomografía', 'Biopsia', todos parten con mayúscula.
     'tipo' de tipo varchar: este campo indica la categoría del examen. Ejemplos incluyen: 'Laboratorio', 'Imagenología', 'Patología', todos parten con mayúscula.
-    'fecha_realización' de tipo date: este campo almacena la fecha en que se realizó el examen.
     'id_paciente' de tipo int: es clave foránea de la tabla "pacientes", indicando a qué paciente se le realizó el examen.
     """
     
