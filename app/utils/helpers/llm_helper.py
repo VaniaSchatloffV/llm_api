@@ -37,7 +37,7 @@ def LLM_Identify_NL(pregunta, messages: Optional[list] = []):
         Tu tarea es identificar entre 4 tipos de mensaje 
         a) Petición o pregunta relacionada a doctores, pacientes y/o atenciones o algo que pueda estar relacionado con estos. y que no sea una peticion de generar un archivo csv o xlsx(excel).
         b) que se pida informacion en formato xlsx (tambien te pueden pedir esto como 'excel' o 'Excel') o comma separated values (csv), si se te pide una tabla de estos formatos, asume que es este tipo de mensaje. Si ves cualquiera de las palabras xlsx/excel/Excel/XLSX o CSV/csv escritas, asume que es este tipo de mensaje. Esta ultima condicion toma prioridad por sobre cualquier otro tipo de mensaje.
-        c) Recibir una peticion para graficar la informacion obtenida, cualquier tipo de mensaje que haga referencia a graficos, considerala un mensaje de este tipo y escribe solamente 'graph' como respuesta.
+        c) Recibir una peticion para graficar la informacion obtenida, cualquier tipo de mensaje que haga referencia a graficos o a modificar algo de estos, considerala un mensaje de este tipo y escribe solamente 'graph' como respuesta.
         d) Cualquier otro caso, osea una conversacion en lenguaje natural que no sea una solicitud referente al ambito de un hospital, la fundacion, nombres de pacientes o doctores etc.
 
         Si es que consideras que es de tipo 'a', responde exclusivamente con un mensaje que diga "SQL". No generes ni sugieras una consulta SQL.
@@ -175,23 +175,31 @@ def LLM_Translate_Data_to_NL(Data, question, query, tokens_used):
                                             model = "anthropic.claude-3-sonnet-20240229-v1:0")
 
 
-def LLM_graphgen(Data, question):
+def LLM_graphgen(Data, question, messages: Optional[list] = []):
 
     system_prompt = """ 
         Aquí está el contenido de un archivo CSV. El archivo tiene las siguientes columnas: {Data}. 
         Identifica qué columnas son gráficables.
 
-        Por favor, devuélveme en un formato JSON las columnas y el tipo de gráfico adecuado en la siguiente estructura, no necesito mas informacion que el JSON:
+        Por favor, devuélveme en formato JSON las columnas y el tipo de gráfico adecuado en la siguiente estructura, no necesito mas informacion que el JSON y no escribas 'JSON' en tu respuesta:
+
+        
+        
 
         {{
+            
             "tipo_grafico": "scatter/line/bar/hist",
             "x_col": "nombre_columna_x",
-            "y_col": "nombre_columna_y" 
+            "y_col": "nombre_columna_y",
+            "color: "color",
+            "titulo: "titulo"
         }}
 
+        En caso de que {question} indique alguna modificacion al grafico que pretende obtener, es tu tarea incluir esa modificacion siempre que esta sea posible con {Data}, de lo contrario indica que no es posible generar el grafico con lo solicitado.
             """
 
     return aws_bedrock.invoke_llm("{question}",
                                             system_prompt,
                                             parameters = {"Data": Data, "question": question},
-                                            model = "anthropic.claude-3-sonnet-20240229-v1:0")
+                                            model = "anthropic.claude-3-sonnet-20240229-v1:0",
+                                            messages = messages)

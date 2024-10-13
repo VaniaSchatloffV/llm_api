@@ -60,10 +60,12 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
                 df_d = pd.read_excel(file_path)
 
 
-            graph_option = llm_helper.LLM_graphgen(df_d.columns,user_message)
-            print(graph_option)
+            graph_option = llm_helper.LLM_graphgen(df_d.columns,user_message, messages_for_llm)
+            graph_option = graph_option.strip("json")
+            print("hola",graph_option)
+            print(type(graph_option))
             dic_go = json.loads(graph_option)
-            grafico, graph_name = graphic_helper.generar_grafico(file_path,dic_go['tipo_grafico'],dic_go['x_col'],dic_go['y_col'])
+            grafico, graph_name = graphic_helper.generar_grafico(file_path,dic_go['tipo_grafico'],dic_go['x_col'],dic_go['y_col'],dic_go['color'],dic_go['titulo'])
             print(type(grafico))
             file_helper.new_file(user_id, conversation_id, graph_name, "png") #Creo que es esta
             file_created_msg = "Tu arhivo ya esta listo"
