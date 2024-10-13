@@ -45,7 +45,6 @@ def timeout(max_timeout):
     return timeout_decorator
 
 class TableDoesNotExist(Exception):
-    LOGGER.error("Tabla no existe")
     pass
 
 class DB_ORM_Handler(object):

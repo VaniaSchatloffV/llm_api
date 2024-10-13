@@ -15,7 +15,6 @@ def new_conversation(user_id: int):
     with DB_ORM_Handler() as db:
         Conversation = ConversationObject()
         Conversation.user_id = user_id
-        db.createTable(Conversation)
         conversation_id = db.saveObject(p_obj=Conversation, get_obj_attr=True, get_obj_attr_name="id")
         return conversation_id
 
@@ -36,7 +35,6 @@ def insert_message(conversation_id: int, role: str, content: Union[list, str], t
     Message.message = message
     Message.type = type
     with DB_ORM_Handler() as db:
-        db.createTable(Message)
         db.saveObject(Message)
 
 

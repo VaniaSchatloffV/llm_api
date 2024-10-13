@@ -124,7 +124,6 @@ def new_file(user_id: int, conversation_id: int, name: str, extension: str):
         File.conversation_id = conversation_id
         File.name = name
         File.extension = extension
-        db.createTable(File)
         File_id = db.saveObject(p_obj=File, get_obj_attr=True, get_obj_attr_name="id")
         return File_id
 
@@ -137,7 +136,6 @@ def delete_file(file_id: int):
 
 def search_expired_files_and_delete():
     with DB_ORM_Handler() as db:
-        db.createTable(FileObject)
         files = db.getObjects(
             FileObject,
             FileObject.expires_at <= datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
