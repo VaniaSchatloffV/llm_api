@@ -149,69 +149,52 @@ def get_conversation_table(offset: Optional[int] = None, limit: Optional[int] = 
         limit = 10
     if offset is None:
         offset = 0
-    order = [ConversationObject.id.desc()]
-    if order_by == "user_id":
-        if order_way == "asc":
-            order = [ConversationObject.user_id.asc()]
-        else:
-            order = [ConversationObject.user_id.desc()]
-    if order_by == "conversation_id":
-        if order_way == "asc":
-            order = [ConversationObject.id.asc()]
-        else:
-            order = [ConversationObject.id.desc()]
-    conversations_table = []
-    with DB_ORM_Handler() as db:
-        conversations = db.getObjects(
-            ConversationObject,
-            columns = [ConversationObject.id, ConversationObject.user_id],
-            order_by=order,
-            limit = limit,
-            offset = offset
+    if order_by is None:
+        order_by = "conversation_id"
+    get_conversation_attr = f"""
+        WITH query_messages AS (
+            SELECT
+                id,
+                conversation_id,
+                message
+            FROM messages
+            WHERE type = 'query'
+        ),
+        question_messages AS (
+            SELECT
+                id,
+                conversation_id,
+                message
+            FROM messages
+            WHERE type = 'conversation' AND CAST(message as varchar) LIKE '%"user"%'
+        ),
+        join_query_question AS (
+            SELECT
+                query.message as mq,
+                question.message as mqq,
+                question.conversation_id,
+                c.user_id,
+                ROW_NUMBER() OVER (PARTITION BY query.id ORDER BY question.id DESC) AS row_num
+            FROM query_messages query
+            JOIN question_messages question ON question.conversation_id = query.conversation_id AND question.id < query.id
+            JOIN conversations c ON c.id = query.conversation_id
         )
-        for conversation in conversations:
-            conversation_id = conversation.get("id")
-            user_id = conversation.get("user_id")
-            first_message = db.getObjects(
-                MessagesObject,
-                MessagesObject.conversation_id == conversation_id,
-                MessagesObject.type == "conversation",
-                order_by=[MessagesObject.created_at.asc()],
-                columns=[MessagesObject.message],
-                limit=1
-            )
-
-            query_message = db.getObjects(
-                MessagesObject,
-                MessagesObject.conversation_id == conversation_id,
-                MessagesObject.type == "query",
-                order_by=[MessagesObject.created_at.asc()],
-                columns=[MessagesObject.message],
-                limit=1
-            )
-            row = {}
-            row["Id conversación"] = conversation_id
-            row["Id usuario"] = user_id
-            row["Mensaje inicial"] = None
-            if len(query_message) != 0 and first_message[0].get("message"):
-                pregunta = first_message[0].get("message")
-                if pregunta:
-                    if type(pregunta) == str:
-                        pregunta = json.loads(pregunta)
-                    row["Mensaje inicial"] = pregunta.get("content")
-            row["Consulta generada"] = None
-            if len(query_message) != 0 and query_message[0].get("message"):
-                consulta = query_message[0].get("message")
-                if consulta:
-                    if type(consulta) == str:
-                        consulta = json.loads(consulta)
-                    if type(consulta.get("content")) == str:
-                        row["Consulta generada"] = sqlparse.format(consulta.get("content"), reindent=True, keyword_case='upper')
-                    else:
-                        row["Consulta generada"] = sqlparse.format(consulta.get("content").get("query"), reindent=True, keyword_case='upper')
-                    
-            conversations_table.append(row)
-        return conversations_table
+        SELECT
+            conversation_id as "Id conversación",
+            user_id as "Id usuario",
+            mqq->>'content' as "Mensaje inicial",
+            mq::json->'content'->>'query' as "Consulta generada"
+        FROM join_query_question
+        WHERE row_num = 1
+        ORDER BY {order_by} {order_way}
+        LIMIT {limit}
+        OFFSET {offset}
+    """
+    with DB_ORM_Handler() as db:
+        data = db.query(get_conversation_attr, return_data=True)
+        for i in range(len(data)):
+            data[i]["Consulta generada"] = sqlparse.format(data[i].get("Consulta generada"), reindent=True, keyword_case='upper')
+        return data
 
 def count_conversations():
     with DB_ORM_Handler() as db:
