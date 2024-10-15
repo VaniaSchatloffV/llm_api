@@ -132,6 +132,7 @@ def LLM_Fix_SQL(consulta, query, error, messages):
                                                   system_prompt=system_prompt,
                                                   human_input=human_input,
                                                   memory = messages,
+                                                  llm_model="anthropic.claude-3-sonnet-20240229-v1:0",
                                                   parameters={"esquema":settings.postgres_schema, "consulta":consulta, "input":query, "error":error})
 
 

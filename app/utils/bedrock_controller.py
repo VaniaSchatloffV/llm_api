@@ -34,6 +34,7 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
     messages = conversation_helper.get_messages(conversation_id)
     messages_for_llm = llm_helper.format_llm_memory(messages)
     classifier = llm_helper.LLM_Identify_NL(user_message, messages_for_llm)
+    classifier = classifier.get("answer")
 
     if classifier != "SQL" and not(classifier in file_helper.OPTIONS):
         conversation_helper.insert_message(conversation_id, "user", user_message)
@@ -60,9 +61,10 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
         messages = conversation_helper.get_messages_for_llm(conversation_id)
         messages_for_llm = llm_helper.format_llm_memory(messages)
         conversation_helper.insert_message(conversation_id, "user", user_message)
-        resp = llm_helper.LLM_SQL(question=user_message, messages=messages_for_llm)
+        resp, tokens_LLM_SQL = llm_helper.LLM_SQL(question=user_message, messages=messages_for_llm)
         # Verificacion del mensaje
         verification = llm_helper.LLM_recognize_SQL(resp.get("answer"))
+        verification = verification.get("answer")
         if verification == "NL":
             conversation_helper.insert_message(conversation_id, "assistant", resp.get("answer"))
             return {"response": resp.get("answer"), "conversation_id": conversation_id}
@@ -78,12 +80,13 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
                     # Se actualiza memoria
                     messages = conversation_helper.get_messages_for_llm(conversation_id)
                     messages_for_llm = llm_helper.format_llm_memory(messages)
-                    query = llm_helper.LLM_Fix_SQL(user_message, query, error, messages_for_llm)
+                    query, tokens_LLM_Fix_SQL = llm_helper.LLM_Fix_SQL(user_message, query, error, messages_for_llm)
                     
                     
                     
-                    verification = llm_helper.LLM_recognize_SQL(query.get("answer"))
-                    if verification == "SQL":
+                    verification_fix = llm_helper.LLM_recognize_SQL(query.get("answer"))
+                    verification_fix = verification_fix.get("answer")
+                    if verification_fix == "SQL":
                         db_response = execute_query(query.get("answer"), user_id, conversation_id)
                         conversation_helper.insert_message(conversation_id, "assistant", {"query": query.get("answer"), "file_id": db_response.get("file_id")}, "query_review")
                         if db_response.get("error") is None:
@@ -106,6 +109,7 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
             encoding = tiktoken.encoding_for_model("gpt-4o")
             tokens_used = encoding.encode(str(data))
             nl_response = llm_helper.LLM_Translate_Data_to_NL(data, user_message, query, tokens_used)
+            nl_response = nl_response.get("answer")
             response_format["response"] = {"text": nl_response}
             conversation_helper.insert_message(conversation_id, "assistant", nl_response, "response")
                         
