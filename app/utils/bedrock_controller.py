@@ -3,7 +3,7 @@ import tiktoken
 
 from app.dependencies import get_settings
 from app.crud.DBORMHandler import DB_ORM_Handler
-from .helpers import conversation_helper, file_helper, llm_helper
+from .helpers import conversation_helper, file_helper, llm_helper, tokens_helper
 
 settings = get_settings()
 
@@ -24,6 +24,12 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
 
     if conversation_id == 0:
         conversation_id = conversation_helper.new_conversation(user_id)
+        tokens_helper.create_tokens_for_conversation(conversation_id)
+        input_tokens_usados = 0
+        output_tokens_usados = 0
+
+    else:
+        input_tokens_usados, output_tokens_usados = tokens_helper.get_tokens(conversation_id)
 
     response_format = {
         "response" : None,
@@ -33,9 +39,12 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
     # Se obtienen mensajes anteriores para la llm
     messages = conversation_helper.get_messages(conversation_id)
     messages_for_llm = llm_helper.format_llm_memory(messages)
-    classifier = llm_helper.LLM_Identify_NL(user_message, messages_for_llm)
-    classifier = classifier.get("answer")
-
+    identify_resp = llm_helper.LLM_Identify_NL(user_message, messages_for_llm)
+    input_tokens_usados += identify_resp.usage_metadata.get("input_tokens")
+    output_tokens_usados += identify_resp.usage_metadata.get("output_tokens")
+    #print("in:", input_tokens_usados, "\nout:", output_tokens_usados)
+    classifier = identify_resp.content
+    
     if classifier != "SQL" and not(classifier in file_helper.OPTIONS):
         conversation_helper.insert_message(conversation_id, "user", user_message)
         conversation_helper.insert_message(conversation_id, "assistant", classifier)
@@ -62,9 +71,16 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
         messages_for_llm = llm_helper.format_llm_memory(messages)
         conversation_helper.insert_message(conversation_id, "user", user_message)
         resp, tokens_LLM_SQL = llm_helper.LLM_SQL(question=user_message, messages=messages_for_llm)
+        input_tokens_usados += identify_resp.usage_metadata.get("output_tokens")
+        output_tokens_usados += tokens_LLM_SQL
+        #print("in:", input_tokens_usados, "\nout:", output_tokens_usados)
+
         # Verificacion del mensaje
-        verification = llm_helper.LLM_recognize_SQL(resp.get("answer"))
-        verification = verification.get("answer")
+        recognize_resp = llm_helper.LLM_recognize_SQL(resp.get("answer"))
+        verification = recognize_resp.content
+        input_tokens_usados += recognize_resp.usage_metadata.get("input_tokens")
+        output_tokens_usados += recognize_resp.usage_metadata.get("output_tokens")
+        #print("in:", input_tokens_usados, "\nout:", output_tokens_usados)
         if verification == "NL":
             conversation_helper.insert_message(conversation_id, "assistant", resp.get("answer"))
             return {"response": resp.get("answer"), "conversation_id": conversation_id}
@@ -82,10 +98,17 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
                     messages_for_llm = llm_helper.format_llm_memory(messages)
                     query, tokens_LLM_Fix_SQL = llm_helper.LLM_Fix_SQL(user_message, query, error, messages_for_llm)
                     
+                    input_tokens_usados += recognize_resp.usage_metadata.get("output_tokens")
+                    output_tokens_usados += tokens_LLM_Fix_SQL
+                    #print("in:", input_tokens_usados, "\nout:", output_tokens_usados)
                     
+                    recognize_fix_resp = llm_helper.LLM_recognize_SQL(query.get("answer"))
+                    verification_fix = recognize_fix_resp.content
                     
-                    verification_fix = llm_helper.LLM_recognize_SQL(query.get("answer"))
-                    verification_fix = verification_fix.get("answer")
+                    input_tokens_usados += recognize_fix_resp.usage_metadata.get("input_tokens")
+                    output_tokens_usados += recognize_fix_resp.usage_metadata.get("output_tokens")
+                    #print("in:", input_tokens_usados, "\nout:", output_tokens_usados)
+                    
                     if verification_fix == "SQL":
                         db_response = execute_query(query.get("answer"), user_id, conversation_id)
                         conversation_helper.insert_message(conversation_id, "assistant", {"query": query.get("answer"), "file_id": db_response.get("file_id")}, "query_review")
@@ -108,9 +131,20 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
             # PARA REVISAR EL NUMERO DE TOKENS DE LA RESPUESTA
             encoding = tiktoken.encoding_for_model("gpt-4o")
             tokens_used = encoding.encode(str(data))
-            nl_response = llm_helper.LLM_Translate_Data_to_NL(data, user_message, query, tokens_used)
-            nl_response = nl_response.get("answer")
+            translate_resp = llm_helper.LLM_Translate_Data_to_NL(data, user_message, query, tokens_used)
+            
+            input_tokens_usados += translate_resp.usage_metadata.get("input_tokens")
+            output_tokens_usados += translate_resp.usage_metadata.get("output_tokens")
+            #print("in:", input_tokens_usados, "\nout:", output_tokens_usados)
+            
+            nl_response = translate_resp.content
             response_format["response"] = {"text": nl_response}
             conversation_helper.insert_message(conversation_id, "assistant", nl_response, "response")
-                        
+            
+            tokens_helper.set_tokens(
+                conversation_id=conversation_id,
+                input_tokens_used_conversation = input_tokens_usados,
+                output_tokens_used_conversation = output_tokens_usados
+                )
+
             return response_format

@@ -20,10 +20,14 @@ class Settings(BaseSettings):
     api_identifier : str
     auth0_client_id : str
     auth0_client_secret : str
+    identify : str
+    sql : str
+    recognize : str
+    fix : str
+    translate : str
     algorithm : str
-    temp :float
+    temp : float
     top_p : float
-    
     
     class Config:
         env_file = ".env"
