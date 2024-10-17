@@ -5,7 +5,7 @@ env = settings.environment
 
 LOGGER = logging.getLogger(__name__)
 if env == "dev":
-    LOGGER.setLevel(logging.DEBUG)
+    LOGGER.setLevel(logging.INFO)
 stream_handler = logging.StreamHandler(sys.stdout)
 log_formatter = logging.Formatter("%(asctime)s  [%(levelname)s]: %(message)s")
 stream_handler.setFormatter(log_formatter)

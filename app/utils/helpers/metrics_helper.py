@@ -13,8 +13,7 @@ settings = get_settings()
 def get_metrics(conversation_id:int):
     ''' Funcion que obtiene las metricas de los llm'''
     input_tokens, output_tokens = tokens_helper.get_tokens(conversation_id=conversation_id)
-
-    return {
+    metric_data = {
         "Temperatura":settings.llm_temperature, 
         "Top P":settings.llm_top_p, 
         "Modelo LLM identificador de entrada":settings.llm_identify_model, 
@@ -27,7 +26,8 @@ def get_metrics(conversation_id:int):
         "Tokens de entrada":input_tokens,
         "Tokens de salida":output_tokens,
         "Tiempo de ejecución promedio":get_time_difference_between_messages(conversation_id)
-        }
+    }
+    return metric_data
 
 
 
@@ -38,7 +38,7 @@ def upload_metric(conversation_id: int, questions: dict, calification: int):
     metric.metrics = get_metrics(conversation_id)
     metric.calification = calification
     with DB_ORM_Handler() as db:
-        db.saveObject(metric)
+        db.saveObject(p_obj=metric)
         db.updateObjects(
             ConversationObject,
             ConversationObject.id == conversation_id,
@@ -51,7 +51,7 @@ def count_metrics():
         return total
 
 def get_time_difference_between_messages(conversation_id : int):
-    query = """
+    query = f"""
     WITH query_messages AS (
     SELECT
         id,
@@ -86,11 +86,11 @@ def get_time_difference_between_messages(conversation_id : int):
     GROUP BY conversation_id;
     """
 
-    formatted_query = query.format(conversation_id=conversation_id)
+    
     with DB_ORM_Handler() as db:
-        resp = db.query(formatted_query, return_data=True)
-
-    return resp.pop().get("tiempo_ejecucion")
+        resp = db.query(query, return_data=True)
+    if len(resp) != 0:
+        return resp.pop().get("tiempo_ejecucion")
 
 def get_table(offset: Optional[int] = None, limit: Optional[int] = None, order_by: Optional[str] = None, order_way: Optional[str] = None):
     if limit is None:
