@@ -12,12 +12,15 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain.schema import Document
 
+import time
+
 from app.dependencies import get_settings
 settings = get_settings()
 
 def rag_retriever(rag_data: list, formatted_human_input: str, radio_busqueda: Optional[float] = 0.5, embeddings_model: Optional[str] = "amazon.titan-embed-text-v1"):
-    
+    start_time = time.time()
     documents = [Document(page_content=i) for i in rag_data]
+    print("\n\n", formatted_human_input, "\n\n", embeddings_model, "\n\n")
 
     bedrock = boto3.client(service_name="bedrock-runtime", region_name=settings.aws_default_region)
     bedrock_embeddings = BedrockEmbeddings(model_id=embeddings_model, client=bedrock)
@@ -35,15 +38,34 @@ def rag_retriever(rag_data: list, formatted_human_input: str, radio_busqueda: Op
     index = faiss.IndexFlatIP(document_array_norm.shape[1])
     index.add(document_array_norm)
 
+    index_start_time = time.time()
     lims, D, I = index.range_search(question_array_norm, radio_busqueda)
+    #print("e", lims, D, I)
+    index_end_time = time.time()
 
     filtered_documents = [] 
-
-    for i in I:
+    distancias = []# no es necesario, solo debuggeo
+    for i in range(len(I)):
         filtered_documents.append(documents[i])
-
-    vectorstore = FAISS.from_documents(documents=documents, embedding=bedrock_embeddings)
+        distancias.append(D[i])#
+    
+    print(len(filtered_documents))
+    
+    for_start_time = time.time()
+    print("docs retornados: ")
+    for doc in filtered_documents:
+        print(str(doc)[len("    En la tabla de nombre:             f "):len("    En la tabla de nombre:             f ")+9])
+    for_end_time = time.time()
+    print(distancias)#
+    
+    vector_start_time = time.time()
+    vectorstore = FAISS.from_documents(documents=filtered_documents, embedding=bedrock_embeddings)
     retriever = vectorstore.as_retriever()
+    end_time = time.time()
+    print(str(index_end_time - index_start_time).replace(".", ","))
+    print(str(end_time - vector_start_time).replace(".", ","))
+    print(str(end_time - start_time - (for_end_time - for_start_time)).replace(".",","))
+
     return retriever
 
 
@@ -51,7 +73,7 @@ def invoke_rag_llm_with_memory(rag_data: list,
                             system_prompt: str,
                             human_input: str,
                             llm_model: Optional[str] = "anthropic.claude-3-sonnet-20240229-v1:0",
-                            embeddings_model: Optional[str] = "amazon.titan-embed-text-v1",
+                            #embeddings_model: Optional[str] = "amazon.titan-embed-text-v1",
                             memory: Optional[list] = [],
                             parameters : Optional[dict] = {},
                             temperature=0,
@@ -74,7 +96,7 @@ def invoke_rag_llm_with_memory(rag_data: list,
     )
 
     formatted_human_input = human_input.format(**parameters)
-
+    #print("\nformatted: ",formatted_human_input,"\n")
     prompt = ChatPromptTemplate.from_messages(
         [
             (
@@ -86,16 +108,23 @@ def invoke_rag_llm_with_memory(rag_data: list,
             ),
         ]
     )
-    retriever = rag_retriever(rag_data=rag_data, formatted_human_input=formatted_human_input, radio_busqueda=0.3)
+    #print("\nprompt: ", prompt, "\n")
+    retriever = rag_retriever(rag_data=rag_data, formatted_human_input=formatted_human_input, radio_busqueda=0.4)
+    #print("\nretriever: ", retriever, "\n")
     
     history_aware_retriever = create_history_aware_retriever(model, retriever, prompt)
+    #print("\nhistory retriever: \n")
     question_answer_chain = create_stuff_documents_chain(model, prompt)
+    #print("\retriever: stuffed\n")
     rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
+    #print("\retriever: ", retriever, "\n")
     if len(memory) != 0:
         memory.pop()
     parameters["context"] = retriever
     parameters["chat_history"] = memory
+    #print("\nmemory: " , memory , "\n")
     response = rag_chain.invoke(parameters)
+    #print("\nresponse: ", response, "\n")
     return response
 
 

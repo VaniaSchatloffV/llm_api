@@ -58,7 +58,13 @@ my_data = [
     'nombre' de tipo varchar: este campo corresponde al nombre del examen. Algunos ejemplos de entradas son: 'Hemograma', 'Tomografía', 'Biopsia', todos parten con mayúscula.
     'tipo' de tipo varchar: este campo indica la categoría del examen. Ejemplos incluyen: 'Laboratorio', 'Imagenología', 'Patología', todos parten con mayúscula.
     'id_paciente' de tipo int: es clave foránea de la tabla "pacientes", indicando a qué paciente se le realizó el examen.
-    """
+    """,
+
+    """Los tomátes son frutas rojas y muy ricas! son mis favoritos!
+
+    """,
+
+    """Una imagen de Bob esponja! Mira kristel! Una imagen de Bob esponja!"""
     
     ]
 
