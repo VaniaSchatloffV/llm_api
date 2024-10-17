@@ -69,7 +69,7 @@ def file_iterator(file_path: str):
     """
     Itera sobre archivo
     """
-    if "csv" in file_path: #revisar como cambiar esto para que sea más modular y menos duro
+    if "csv" in file_path or "png" in file_path:
         with open(file_path, mode="rb") as file:
             yield from file
     elif "xlsx" in file_path:

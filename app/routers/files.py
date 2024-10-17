@@ -16,15 +16,6 @@ def download(file: File, token_data: TokenData = Depends(verify_token)):
         headers={"Content-Disposition": f"attachment; filename={os.path.basename(file_helper.get_file_path(file.file_id))}"}
     )
 
-# @router.get("/download/xlsx/")
-# def download_xlsx(file: File, token_data: TokenData = Depends(verify_token)):
-#     return StreamingResponse(
-#         file_helper.download_file(file.file_id),
-#         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-#         headers={"Content-Disposition": f"attachment; filename={os.path.basename(file_helper.get_file_path(file.file_id))}"}
-#     )
-
-
 
 @router.get("/check/")
 def download_xlsx(file: File, token_data: TokenData = Depends(verify_token)):

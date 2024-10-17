@@ -168,7 +168,7 @@ def LLM_Translate_Data_to_NL(Data, question, query, tokens_used):
 
                 No menciones el SQL en ningún caso, responde usando solo lenguaje natural. Se conciso en tu respuesta, agregando contexto de la pregunta. 
 
-                Además, recuerda terminar tu mensaje indicando unicamente al usuario que puede pedir la información como excel o csv, no agregues palabras extras.
+                Además, recuerda terminar tu mensaje indicando unicamente al usuario que puede pedir la información como excel, csv o gráfico, no agregues palabras extras.
                 """
     return aws_bedrock.invoke_llm("{question}",
                                             system_prompt,
