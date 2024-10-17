@@ -8,6 +8,7 @@ import os
 
 settings = get_settings()
 
+
 def format_llm_memory(messages: list):
     messages_for_llm = []
     for mess in messages:
@@ -37,7 +38,7 @@ def LLM_Identify_NL(pregunta, messages: Optional[list] = []):
         Tu tarea es identificar entre 4 tipos de mensaje 
         a) Petición o pregunta relacionada a doctores, pacientes y/o atenciones o algo que pueda estar relacionado con estos. y que no sea una peticion de generar un archivo csv o xlsx(excel).
         b) que se pida informacion en formato xlsx (tambien te pueden pedir esto como 'excel' o 'Excel') o comma separated values (csv), si se te pide una tabla de estos formatos, asume que es este tipo de mensaje. Si ves cualquiera de las palabras xlsx/excel/Excel/XLSX o CSV/csv escritas, asume que es este tipo de mensaje. Esta ultima condicion toma prioridad por sobre cualquier otro tipo de mensaje.
-        c) Recibir una peticion para graficar la informacion obtenida, cualquier tipo de mensaje que haga referencia a graficos, considerala un mensaje de este tipo y escribe solamente 'graph' como respuesta.
+        c) Recibir una peticion para graficar la informacion obtenida, cualquier tipo de mensaje que haga referencia a graficos o a modificar algo de estos, considerala un mensaje de este tipo y escribe solamente 'graph' como respuesta.
         d) Cualquier otro caso, osea una conversacion en lenguaje natural que no sea una solicitud referente al ambito de un hospital, la fundacion, nombres de pacientes o doctores etc.
 
         Si es que consideras que es de tipo 'a', responde exclusivamente con un mensaje que diga "SQL". No generes ni sugieras una consulta SQL.
@@ -137,7 +138,6 @@ def LLM_Fix_SQL(consulta, query, error, messages):
 
 def LLM_Translate_Data_to_NL(Data, question, query, tokens_used):
     
-
     if len(Data) == 0: #La información es una lista vacía
         system_prompt = """
         Recibirás una pregunta, tu tarea es responder esta pregunta diciendo que no se encontró información. 
@@ -168,9 +168,82 @@ def LLM_Translate_Data_to_NL(Data, question, query, tokens_used):
 
                 No menciones el SQL en ningún caso, responde usando solo lenguaje natural. Se conciso en tu respuesta, agregando contexto de la pregunta. 
 
-                Además, recuerda terminar tu mensaje indicando unicamente al usuario que puede pedir la información como excel o csv, no agregues palabras extras.
+                Además, recuerda terminar tu mensaje indicando unicamente al usuario que puede pedir la información como excel, csv o gráfico, no agregues palabras extras.
                 """
     return aws_bedrock.invoke_llm("{question}",
                                             system_prompt,
                                             parameters = {"Data": Data, "question": question, "query": query},
                                             model = "anthropic.claude-3-sonnet-20240229-v1:0")
+
+
+def LLM_graphgen(Data, question, messages: Optional[list] = []):
+
+    system_prompt = """ 
+        Aquí está el contenido de un archivo CSV. El archivo tiene las siguientes columnas: {Data}. 
+        Identifica qué columnas son gráficables.
+
+        Por favor, devuélveme en formato JSON las columnas y el tipo de gráfico adecuado en la siguiente estructura, no necesito mas informacion que el JSON y no escribas 'JSON' en tu respuesta, es importante incluir el tipo de grafico, el eje x y el eje y.
+        titulo y color son solo si el usuario lo indica:
+
+        
+        
+
+        {{   
+            "tipo_grafico": "scatter/line/bar/hist",
+            "x_col": "nombre_columna_x",
+            "x_col_name": "Nombre que el ususario desea para la columna x",
+            "y_col": "nombre_columna_y",
+            "y_col_name": "Nombre que el ususario desea para la columna y",
+            "color": "color en ingles",
+            "titulo": "titulo",
+            "faltan_datos: "true"/"false"
+            "explicacion": "explicacion"
+        }}
+
+        x_col e y_col son los nombres de la columnas en el dataframe.
+        Recuerda que el JSON es la unica informacion que necesito, no escribas nada mas que el JSON sugerido, es importante considerar peticiones antiguas sobre el grafico, y realizar los cambios a los parametros indicados manteniendo las indicaciones que no sufrieron modificaciones. 
+        Omite explicaciones a toda costa.
+        En caso de que {question} indique alguna modificacion al grafico que pretende obtener, es tu tarea incluir esa modificacion siempre que esta sea posible con {Data}.
+
+        Campos como color titulo o y_col no los incluyas si es que no se mencionan
+        El campo faltan_datos no puede faltar, puede ser "true" si es que necesitas mas informacion para poder generar una consulta, o "false" si con la informacion que tienes puedes generar el grafico que se te solicita.
+        El campo explicacion aparece solo si el campo faltan_datos es true y aqui es tu trabajo colocar toda la explicacion, de manera concisa, de porque no se puede generar el grafico.
+        """
+
+    return aws_bedrock.invoke_llm("{question}",
+                                            system_prompt,
+                                            parameters = {"Data": Data, "question": question},
+                                            model = "anthropic.claude-3-sonnet-20240229-v1:0",
+                                            messages = messages)
+
+
+def LLM_SQL_graph(question ,messages: list, temperature=0, top_p=0.1):
+    system_prompt = """
+        Las siguientes son descripciones de varias tablas y sus campos en una base de datos:
+        {context}, estas se encuentran en el esquema {esquema}.
+        Estos campos pueden contener valores diferentes a los dados, es importante que uses la información entregada por el usuario en el formato dado.
+        Estos son los únicos campos de las tablas. Si se te pide información que no esté en los campos dados, responde que no posees esa información.
+        Recibiras una peticion para modificar o generar un grafico
+        
+        Con esta información, genera una nuevo SQL tomando el contexto anterior de la conversacion pero considerando lo que se necesite para cumplir a la pregunta: {input} 
+        
+        Utiliza exclusivamente sintaxis de PostgreSQL. Es importante que al usar las tablas, agregues {esquema}.tabla.
+        No respondas con nada más que el SQL generado, tienes prohibido generar cualquier tipo de texto en lenguaje natural, es tu trabajo omitirlo de manera completa, un ejemplo de SQL es: "SELECT * FROM {esquema}.pacientes;". Tampoco agregues cordialidades o explicaciones, responde solo con SQL.
+        Identifica si las preguntas que haz recibido anteriormente han sido respondidas, de ser así, Omitelas al generar el nuevo SQL, pero mantenlas como contexto.
+
+        solo existen dos casos donde puedes no utilizar SQL 
+
+        1) Si se te pide modificar la base de datos: debes indicar que no lo tienes permitido, 
+
+        2) Si se te pide informacion que no esta en los documentos: di que esta no es parte de la información manejada. Responde de manera 
+        concisa exclusivamente en lenguaje natural omitiendo cualquier tipo de sintaxis SQL o informacion de la tabla asociada, indicando qué la pregunta no está relacionada con la información que se encuentra
+        en la base de datos e invita al usuario a volver a realizar una consulta sobre la informacion que maneja FALP.
+        """
+    
+    return aws_bedrock.invoke_rag_llm_with_memory(
+        rag_data = my_data,
+        human_input = "{input}",
+        parameters={"input":question, "esquema":settings.postgres_schema},
+        system_prompt = system_prompt,
+        memory = messages
+    )

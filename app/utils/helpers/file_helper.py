@@ -8,7 +8,7 @@ import pandas as pd
 import os
 import random
 from sqlalchemy.orm import aliased
-from sqlalchemy import and_
+from sqlalchemy import and_, desc
 
 from app.models.files import FileObject
 
@@ -23,6 +23,7 @@ def to_file(type: str, data: list):
         return to_csv(data)
     if type == "xlsx":
         return to_excel(data)
+    
 
 def to_csv(data: list):
     """
@@ -43,6 +44,9 @@ def to_excel(data: list):
     df = pd.DataFrame(data)
     df.to_excel(file_path)
     return file_name
+
+
+
 
 def get_file_path(file_id: int):
     """
@@ -65,7 +69,7 @@ def file_iterator(file_path: str):
     """
     Itera sobre archivo
     """
-    if "csv" in file_path: #revisar como cambiar esto para que sea más modular y menos duro
+    if "csv" in file_path or "png" in file_path:
         with open(file_path, mode="rb") as file:
             yield from file
     elif "xlsx" in file_path:
@@ -126,6 +130,17 @@ def new_file(user_id: int, conversation_id: int, name: str, extension: str):
         File.extension = extension
         File_id = db.saveObject(p_obj=File, get_obj_attr=True, get_obj_attr_name="id")
         return File_id
+    
+def get_last_file_from_conversation(conversation_id):
+    with DB_ORM_Handler() as db:
+        files = db.getObjects(
+            FileObject,
+            FileObject.conversation_id == conversation_id,
+            FileObject.extension.in_(['csv', 'xlsx']),
+            order_by= [desc(FileObject.id)],
+            limit = 1    
+        )
+    return files
 
 def delete_file(file_id: int):
     filepath = get_file_path(file_id)
