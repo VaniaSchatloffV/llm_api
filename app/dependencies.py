@@ -21,6 +21,13 @@ class Settings(BaseSettings):
     auth0_client_id : str
     auth0_client_secret : str
     algorithm : str
+    identify : str
+    sql : str
+    recognize : str
+    fix : str
+    translate : str
+    temp : float
+    top_p : float
     
     class Config:
         env_file = ".env"

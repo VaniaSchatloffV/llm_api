@@ -54,8 +54,8 @@ def invoke_rag_llm_with_memory(rag_data: list,
                             embeddings_model: Optional[str] = "amazon.titan-embed-text-v1",
                             memory: Optional[list] = [],
                             parameters : Optional[dict] = {},
-                            temperature=0,
-                            top_p=0.1):
+                            temperature=settings.temp,
+                            top_p=settings.top_p):
     """
     Función que invoca LLM.
     - rag_data: lista con información para el RAG
@@ -95,8 +95,13 @@ def invoke_rag_llm_with_memory(rag_data: list,
         memory.pop()
     parameters["context"] = retriever
     parameters["chat_history"] = memory
-    response = rag_chain.invoke(parameters)
-    return response
+    response = ""
+    num_tokens = 0
+    for chunk in rag_chain.stream(parameters):
+        if chunk.get("answer"):
+            response+=(chunk)
+            num_tokens+=1
+    return response, num_tokens
 
 
 
@@ -105,8 +110,8 @@ def invoke_llm(human_input: str,
                     parameters: Optional[dict] = {},
                     model: Optional[str] ="anthropic.claude-3-sonnet-20240229-v1:0",
                     messages: Optional[list] = [],
-                    temperature=0,
-                    top_p=0.1):
+                    temperature=settings.temp,
+                    top_p=settings.top_p):
     """
     Función que invoca LLM.
     - human_input: string que tenga el prompt del usuario. Puede incluir parámetros con {}. Un ejemplo es " Responde de manera cariñosa a {input} "
@@ -133,7 +138,6 @@ def invoke_llm(human_input: str,
     chain = (
         prompt 
         | model
-        | StrOutputParser()
         )
     if len(messages) != 0:
         messages.pop()
