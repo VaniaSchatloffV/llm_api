@@ -137,6 +137,7 @@ def get_last_file_from_conversation(conversation_id):
         files = db.getObjects(
             FileObject,
             FileObject.conversation_id == conversation_id,
+            FileObject.extension.in_(['csv', 'xlsx']),
             order_by= [desc(FileObject.id)],
             limit = 1    
         )
