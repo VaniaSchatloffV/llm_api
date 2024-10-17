@@ -7,6 +7,12 @@ from app.crud.DBORMHandler import DB_ORM_Handler
 
 def get_metrics():
     # Funcion que debe obtener las metricas de los llm
+    # Tiene que tener necesariamente esta estructura
+    # {
+    #  'metricname1': 'value1',
+    #  'metricname2': 'value2',
+    #  ...
+    # }
     return {}
 
 
@@ -60,7 +66,8 @@ def get_table(offset: Optional[int] = None, limit: Optional[int] = None, order_b
                 ConversationObject.user_id.label("Id usuario"),
                 ConversationObject.id.label("Id conversación"),
                 MetricObject.calification.label("Calificación (valor máximo 5)"),
-                MetricObject.data.label("Preguntas")
+                MetricObject.data.label("Preguntas"),
+                MetricObject.metrics.label("Métricas")
                 ],
             join_conditions=[(ConversationObject, MetricObject.conversation_id == ConversationObject.id)],
             order_by=order,
