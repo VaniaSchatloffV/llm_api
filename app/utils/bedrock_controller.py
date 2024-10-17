@@ -100,7 +100,13 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
                 resp, tokens_LLM_SQL = llm_helper.LLM_SQL_graph(question=user_message, messages=messages_for_llm)
                 input_tokens_usados += identify_resp.usage_metadata.get("output_tokens")
                 output_tokens_usados += tokens_LLM_SQL
-                data, query, input_tokens_usados, output_tokens_usados = generate_query_and_data(resp, user_message, conversation_id, user_id, response_format, messages_for_llm, messages, input_tokens_usados, output_tokens_usados)        
+                return_data = generate_query_and_data(resp, user_message, conversation_id, user_id, response_format, messages_for_llm, messages, input_tokens_usados, output_tokens_usados) 
+                if return_data.get("response"):
+                    return return_data.get("response")  
+                data = return_data.get("data")
+                query = return_data.get("query")
+                input_tokens_usados = return_data.get("input_tokens_usados")
+                output_tokens_usados = return_data.get("output_tokens_usados")       
                 file = file_helper.get_last_file_from_conversation(conversation_id=conversation_id)
                 if file: 
                     df_d, file_path = file_to_dataframe(file)
@@ -118,7 +124,14 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
         resp, tokens_LLM_SQL = llm_helper.LLM_SQL(question=user_message, messages=messages_for_llm)
         input_tokens_usados += identify_resp.usage_metadata.get("output_tokens")
         output_tokens_usados += tokens_LLM_SQL
-        data, query, input_tokens_usados, output_tokens_usados = generate_query_and_data(resp, user_message, conversation_id, user_id, response_format, messages_for_llm, messages, input_tokens_usados, output_tokens_usados)
+        return_data = generate_query_and_data(resp, user_message, conversation_id, user_id, response_format, messages_for_llm, messages, input_tokens_usados, output_tokens_usados)
+        if return_data.get("response"):
+            return return_data.get("response")
+        
+        data = return_data.get("data")
+        query = return_data.get("query")
+        input_tokens_usados = return_data.get("input_tokens_usados")
+        output_tokens_usados = return_data.get("output_tokens_usados")
 
         # PARA REVISAR EL NUMERO DE TOKENS DE LA RESPUESTA
         encoding = tiktoken.encoding_for_model("gpt-4o")
@@ -141,7 +154,7 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
 
         return response_format
 
-def generate_query_and_data(resp, user_message, conversation_id, user_id, response_format, messages_for_llm, messages, identify_resp, input_tokens_usados, output_tokens_usados):
+def generate_query_and_data(resp, user_message, conversation_id, user_id, response_format, messages_for_llm, messages, input_tokens_usados, output_tokens_usados):
     # Verificacion del mensaje
     recognize_resp = llm_helper.LLM_recognize_SQL(resp.get("answer"))
     verification = recognize_resp.content
@@ -179,16 +192,22 @@ def generate_query_and_data(resp, user_message, conversation_id, user_id, respon
                 else:
                     conversation_helper.insert_message(conversation_id, "assistant", query.get("answer"), "conversation")
                     response_format["response"] = {"text": query.get("answer")}
-                    return response_format 
+                    return {"response": response_format} 
                 
             if not success:
                 failure_msg = "Ha ocurrido un error con su consulta, por favor contacte a administración de la plataforma para solucionarlo."
                 conversation_helper.insert_message(conversation_id, "assistant", failure_msg, "conversation")
                 response_format["response"] = {"text": failure_msg}
-                return response_format
+                return {"response": response_format}
 
         data = db_response.get("data")
-        return data, query, input_tokens_usados, output_tokens_usados
+        return_data = {
+            "data":data,
+            "query":query,
+            "input_tokens_usados":input_tokens_usados,
+            "output_tokens_usados":output_tokens_usados
+        }
+        return return_data
 
 
 

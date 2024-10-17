@@ -21,13 +21,15 @@ class Settings(BaseSettings):
     auth0_client_id : str
     auth0_client_secret : str
     algorithm : str
-    identify : str
-    sql : str
-    recognize : str
-    fix : str
-    translate : str
-    temp : float
-    top_p : float
+    llm_identify_model : str
+    llm_sql_model : str
+    llm_recognize_model : str
+    llm_fix_model : str
+    llm_translate_model : str
+    llm_sql_graph_model : str
+    llm_graph_gen_model : str
+    llm_temperature : float
+    llm_top_p : float
     
     class Config:
         env_file = ".env"

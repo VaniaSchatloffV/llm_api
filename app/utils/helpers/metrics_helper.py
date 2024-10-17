@@ -15,24 +15,20 @@ def get_metrics(conversation_id:int):
     input_tokens, output_tokens = tokens_helper.get_tokens(conversation_id=conversation_id)
 
     return {
-        "temp":settings.temp, 
-        "top":settings.top_p, 
-        "identify":settings.identify, 
-        "sql":settings.sql, 
-        "recognize":settings.recognize, 
-        "fix":settings.fix, 
-        "translate":settings.translate,
-        "input_tokens":input_tokens,
-        "output_tokens":output_tokens,
-        "execution_time":get_time_difference_between_messages(conversation_id)
+        "Temperatura":settings.llm_temperature, 
+        "Top P":settings.llm_top_p, 
+        "Modelo LLM identificador de entrada":settings.llm_identify_model, 
+        "Modelo LLM experto SQL":settings.llm_sql_model, 
+        "Modelo LLM identificador NL-SQL":settings.llm_recognize_model, 
+        "Modelo LLM corrector SQL":settings.llm_fix_model, 
+        "Modelo LLM traductor data a NL":settings.llm_translate_model,
+        "Modelo LLM diseñador de gráfico":settings.llm_graph_gen_model,
+        "Modelo LLM experto SQL para gráfico":settings.llm_sql_graph_model,
+        "Tokens de entrada":input_tokens,
+        "Tokens de salida":output_tokens,
+        "Tiempo de ejecución promedio":get_time_difference_between_messages(conversation_id)
         }
-    
-    # Tiene que tener necesariamente esta estructura
-    # {
-    #  'metricname1': 'value1',
-    #  'metricname2': 'value2',
-    #  ...
-    # }
+
 
 
 def upload_metric(conversation_id: int, questions: dict, calification: int):

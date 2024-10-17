@@ -56,15 +56,17 @@ def LLM_Identify_NL(pregunta, messages: Optional[list] = []):
 
     """
     return aws_bedrock.invoke_llm(
-        "{question}",
-        system_prompt,
-        {"question": pregunta},
-        "anthropic.claude-3-5-sonnet-20240620-v1:0",
-        messages
+        human_input="{question}",
+        system_prompt=system_prompt,
+        parameters={"question": pregunta},
+        model=settings.llm_identify_model,
+        messages=messages,
+        temperature=settings.llm_temperature,
+        top_p=settings.llm_top_p
     )
 
 
-def LLM_SQL(question ,messages: list, temperature=0, top_p=0.1):
+def LLM_SQL(question ,messages: list, temperature=settings.llm_temperature, top_p=settings.llm_top_p):
     system_prompt = """
         Las siguientes son descripciones de varias tablas y sus campos en una base de datos:
         {context}, estas se encuentran en el esquema {esquema}.
@@ -91,10 +93,14 @@ def LLM_SQL(question ,messages: list, temperature=0, top_p=0.1):
         human_input = "{input}",
         parameters={"input":question, "esquema":settings.postgres_schema},
         system_prompt = system_prompt,
-        memory = messages
+        memory = messages,
+        llm_model = settings.llm_sql_model,
+        temperature=temperature,
+        top_p=top_p
     )
 
-def LLM_recognize_SQL(question, temperature=0, top_p=0.1):
+
+def LLM_recognize_SQL(question, temperature=settings.llm_temperature, top_p=settings.llm_top_p):
     system_prompt = """
         Analiza el siguiente mensaje y determina si es completamente código SQL o si contiene lenguaje natural.
 
@@ -104,10 +110,12 @@ def LLM_recognize_SQL(question, temperature=0, top_p=0.1):
         Si encuentras algo que no sea código SQL puro, clasifica como 'NL'.
         Solo clasifica el mensaje unicamente con las opciones mencionadas.
     """
-    return aws_bedrock.invoke_llm("{input}",
-                                    system_prompt,
+    return aws_bedrock.invoke_llm(human_input="{input}",
+                                    system_prompt=system_prompt,
                                     parameters = {"input": question},
-                                    model = "anthropic.claude-3-sonnet-20240229-v1:0")
+                                    model = settings.llm_recognize_model,
+                                    temperature=temperature,
+                                    top_p=top_p)
 
 
 def LLM_Fix_SQL(consulta, query, error, messages):
@@ -133,7 +141,11 @@ def LLM_Fix_SQL(consulta, query, error, messages):
                                                   system_prompt=system_prompt,
                                                   human_input=human_input,
                                                   memory = messages,
-                                                  parameters={"esquema":settings.postgres_schema, "consulta":consulta, "input":query, "error":error})
+                                                  llm_model=settings.llm_fix_model,
+                                                  parameters={"esquema":settings.postgres_schema, "consulta":consulta, "input":query, "error":error},
+                                                  temperature=settings.llm_temperature,
+                                                  top_p=settings.llm_top_p)
+
 
 
 def LLM_Translate_Data_to_NL(Data, question, query, tokens_used):
@@ -173,7 +185,9 @@ def LLM_Translate_Data_to_NL(Data, question, query, tokens_used):
     return aws_bedrock.invoke_llm("{question}",
                                             system_prompt,
                                             parameters = {"Data": Data, "question": question, "query": query},
-                                            model = "anthropic.claude-3-sonnet-20240229-v1:0")
+                                            model = settings.llm_translate_model,
+                                            temperature=settings.llm_temperature,
+                                            top_p=settings.llm_top_p)
 
 
 def LLM_graphgen(Data, question, messages: Optional[list] = []):
@@ -213,11 +227,13 @@ def LLM_graphgen(Data, question, messages: Optional[list] = []):
     return aws_bedrock.invoke_llm("{question}",
                                             system_prompt,
                                             parameters = {"Data": Data, "question": question},
-                                            model = "anthropic.claude-3-sonnet-20240229-v1:0",
-                                            messages = messages)
+                                            model = settings.llm_graph_gen_model,
+                                            messages = messages,
+                                            temperature=settings.llm_temperature,
+                                            top_p=settings.llm_top_p)
 
 
-def LLM_SQL_graph(question ,messages: list, temperature=0, top_p=0.1):
+def LLM_SQL_graph(question ,messages: list, temperature=settings.llm_temperature, top_p=settings.llm_top_p):
     system_prompt = """
         Las siguientes son descripciones de varias tablas y sus campos en una base de datos:
         {context}, estas se encuentran en el esquema {esquema}.
@@ -245,5 +261,8 @@ def LLM_SQL_graph(question ,messages: list, temperature=0, top_p=0.1):
         human_input = "{input}",
         parameters={"input":question, "esquema":settings.postgres_schema},
         system_prompt = system_prompt,
-        memory = messages
+        memory = messages,
+        llm_model = settings.llm_sql_graph_model,
+        temperature=temperature,
+        top_p=top_p
     )
