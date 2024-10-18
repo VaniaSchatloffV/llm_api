@@ -122,8 +122,8 @@ my_data4 = [
     Si es que clasificas la pregunta como tipo 'archivo', y hay mensajes anteriores en la conversación, responde exclusivamente con "xlsx" o "csv" según lo soliciten.
     Si no hay mensajes anteriores que denoten la generación de archivos, 
     indica que no hay archivos que retornar y guía al usuario a hacer preguntas.
-    Ejemplo tipo 'b': Deseo la informacion en formato csv. Respuesta esperada: csv
-    Ejemplo tipo 'b': Puedes generarme un xlsx de la data que has obtenido. Respuesta esperada: xlsx
+    Ejemplo: Deseo la informacion en formato csv. Respuesta esperada: csv
+    Ejemplo: Puedes generarme un xlsx de la data que has obtenido. Respuesta esperada: xlsx
     """,
 
     """
