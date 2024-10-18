@@ -83,7 +83,7 @@ my_data3 = [
 
     """
     'archivo'
-    Informacion en formato xlsx (tambien te pueden pedir esto como 'excel' o 'Excel') o comma separated values (csv), si se te pide una tabla de estos formatos,
+    Solicitud, peticion o favor de obtener informacion en formato xlsx (tambien te pueden pedir esto como 'excel' o 'Excel') o comma separated values (csv), si se te pide una tabla de estos formatos,
     asume que es este tipo de mensaje. Si ves cualquiera de las palabras xlsx/excel/Excel/XLSX o CSV/csv escritas, asume que es este tipo de mensaje.
     Esta ultima condicion toma prioridad por sobre cualquier otro tipo de mensaje.
     """,
@@ -115,7 +115,7 @@ my_data4 = [
 
     """
     'archivo'
-    Informacion en formato xlsx (tambien te pueden pedir esto como 'excel' o 'Excel') o comma separated values (csv), si se te pide una tabla de estos formatos,
+    Solicitud, peticion o favor de obtener informacion en formato xlsx (tambien te pueden pedir esto como 'excel' o 'Excel') o comma separated values (csv), si se te pide una tabla de estos formatos,
     asume que es este tipo de mensaje. Si ves cualquiera de las palabras xlsx/excel/Excel/XLSX o CSV/csv escritas, asume que es este tipo de mensaje.
     Esta ultima condicion toma prioridad por sobre cualquier otro tipo de mensaje.
 

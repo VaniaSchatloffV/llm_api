@@ -54,7 +54,7 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
     identify_resp, num_tokens = llm_helper.LLM_Identify_NL_RAG(user_message, messages_for_llm)
     input_tokens_usados += 0
     output_tokens_usados += num_tokens
-    classifier = identify_resp.content
+    classifier = identify_resp.get("answer")
 
     #Ruta para cuando el identify reconoce un mensaje de tipo opcion (csv,xlsx)
     if classifier in file_helper.OPTIONS:
@@ -98,7 +98,7 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
                 messages = conversation_helper.get_messages_for_llm(conversation_id)
                 messages_for_llm = llm_helper.format_llm_memory(messages)
                 resp, tokens_LLM_SQL = llm_helper.LLM_SQL_graph(question=user_message, messages=messages_for_llm)
-                input_tokens_usados += identify_resp.usage_metadata.get("output_tokens")
+                input_tokens_usados += num_tokens
                 output_tokens_usados += tokens_LLM_SQL
                 return_data = generate_query_and_data(resp, user_message, conversation_id, user_id, response_format, messages_for_llm, messages, input_tokens_usados, output_tokens_usados) 
                 if return_data.get("response"):
@@ -122,7 +122,7 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
         messages_for_llm = llm_helper.format_llm_memory(messages)
         conversation_helper.insert_message(conversation_id, "user", user_message)
         resp, tokens_LLM_SQL = llm_helper.LLM_SQL(question=user_message, messages=messages_for_llm)
-        input_tokens_usados += identify_resp.usage_metadata.get("output_tokens")
+        input_tokens_usados += num_tokens
         output_tokens_usados += tokens_LLM_SQL
         return_data = generate_query_and_data(resp, user_message, conversation_id, user_id, response_format, messages_for_llm, messages, input_tokens_usados, output_tokens_usados)
         if return_data.get("response"):
