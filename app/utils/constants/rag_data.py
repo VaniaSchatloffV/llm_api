@@ -73,3 +73,79 @@ my_data2 = [
     Pacientes es una tabla de la base de datos con informacion
     """
 ]
+
+my_data3 = [
+    """
+    'consulta':
+    Pregunta relacionada a doctores, pacientes y/o atenciones o algo que pueda estar relacionado con estos.
+
+    """,
+
+    """
+    'archivo'
+    Informacion en formato xlsx (tambien te pueden pedir esto como 'excel' o 'Excel') o comma separated values (csv), si se te pide una tabla de estos formatos,
+    asume que es este tipo de mensaje. Si ves cualquiera de las palabras xlsx/excel/Excel/XLSX o CSV/csv escritas, asume que es este tipo de mensaje.
+    Esta ultima condicion toma prioridad por sobre cualquier otro tipo de mensaje.
+    """,
+
+    """
+    'grafico'
+    Solicitud, peticion o favor para graficar la informacion obtenida, cualquier tipo de mensaje que haga referencia a graficos o a modificar algo de estos,
+    considerala un mensaje de este tipo.
+    """,
+
+    """
+    'conversacion':
+    Una conversacion en lenguaje natural que NO sea: 
+    Una solicitud referente al ambito de un hospital, la fundacion, nombres de pacientes o doctores etc
+    Una peticion para graficar algo 
+    Una peticion para generar algun tipo de archivo.
+    """
+
+]
+
+
+my_data4 = [
+    """
+    'consulta':
+    Pregunta relacionada a doctores, pacientes y/o atenciones o algo que pueda estar relacionado con estos.
+    Si es que clasificas la pregunta como tipo 'consulta' responde solamente con "SQL
+
+    """,
+
+    """
+    'archivo'
+    Informacion en formato xlsx (tambien te pueden pedir esto como 'excel' o 'Excel') o comma separated values (csv), si se te pide una tabla de estos formatos,
+    asume que es este tipo de mensaje. Si ves cualquiera de las palabras xlsx/excel/Excel/XLSX o CSV/csv escritas, asume que es este tipo de mensaje.
+    Esta ultima condicion toma prioridad por sobre cualquier otro tipo de mensaje.
+
+    Si es que clasificas la pregunta como tipo 'archivo', y hay mensajes anteriores en la conversación, responde exclusivamente con "xlsx" o "csv" según lo soliciten.
+    Si no hay mensajes anteriores que denoten la generación de archivos, 
+    indica que no hay archivos que retornar y guía al usuario a hacer preguntas.
+    Ejemplo tipo 'b': Deseo la informacion en formato csv. Respuesta esperada: csv
+    Ejemplo tipo 'b': Puedes generarme un xlsx de la data que has obtenido. Respuesta esperada: xlsx
+    """,
+
+    """
+    'grafico'
+    Solicitud, peticion o favor para graficar la informacion obtenida, cualquier tipo de mensaje que haga referencia a graficos o a modificar algo de estos,
+    considerala un mensaje de este tipo.
+
+    Si es que clasificas la pregunta como 'grafico', responde solamente con "graph"
+    si no hay mensajes anteriores con los que se pueda trabajar en la creacion de un grafico, indica al usuario que no hay archivos con los que se pueda graficar, y guialo a preguntar algo.
+        
+    """,
+
+    """
+    'conversacion':
+    Una conversacion en lenguaje natural que NO sea: 
+    Una solicitud referente al ambito de un hospital, la fundacion, nombres de pacientes o doctores etc
+    Una peticion para graficar algo 
+    Una peticion para generar algun tipo de archivo.
+
+    Si es que clasificas la pregunta como 'conversacion', Responde de manera amigable las preguntas presentándote y orientando al usuario a que te haga una pregunta sobre la informacion que
+    maneja FALP sobre pacientes doctores y atenciones. En caso de ser mencion de un nombre sin mencion de un rol o labor, solicita el rol o labor de la persona en cuestion. Una vez tengas esta informacion 
+    consideralo un mensaje tipo consulta. 
+    """
+
+]

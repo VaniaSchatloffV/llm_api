@@ -51,9 +51,9 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
     # Se obtienen mensajes anteriores para la llm
     messages = conversation_helper.get_messages(conversation_id)
     messages_for_llm = llm_helper.format_llm_memory(messages)
-    identify_resp = llm_helper.LLM_Identify_NL(user_message, messages_for_llm)
-    input_tokens_usados += identify_resp.usage_metadata.get("input_tokens")
-    output_tokens_usados += identify_resp.usage_metadata.get("output_tokens")
+    identify_resp, num_tokens = llm_helper.LLM_Identify_NL_RAG(user_message, messages_for_llm)
+    input_tokens_usados += 0
+    output_tokens_usados += num_tokens
     classifier = identify_resp.content
 
     #Ruta para cuando el identify reconoce un mensaje de tipo opcion (csv,xlsx)
