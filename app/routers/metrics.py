@@ -9,7 +9,7 @@ from app.schemas.metrics import Metric, MetricTable
 router = APIRouter()
 
 @router.post("/send/")
-def download(metric: Metric, token_data: TokenData = Depends(verify_token)):
+def send_metric(metric: Metric, token_data: TokenData = Depends(verify_token)):
     calification = metric.calification
     questions = metric.questions
     conversation_id = metric.conversation_id
