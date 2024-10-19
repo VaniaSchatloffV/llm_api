@@ -131,12 +131,12 @@ def new_file(user_id: int, conversation_id: int, name: str, extension: str):
         File_id = db.saveObject(p_obj=File, get_obj_attr=True, get_obj_attr_name="id")
         return File_id
     
-def get_last_file_from_conversation(conversation_id):
+def get_last_csv_file_from_conversation(conversation_id):
     with DB_ORM_Handler() as db:
         files = db.getObjects(
             FileObject,
             FileObject.conversation_id == conversation_id,
-            FileObject.extension.in_(['csv', 'xlsx']),
+            FileObject.extension == 'csv',
             order_by= [desc(FileObject.id)],
             limit = 1    
         )

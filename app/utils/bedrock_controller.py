@@ -82,7 +82,7 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
     #Ruta para cuando el identify reconoce como grafico
     if classifier == "graph":
         conversation_helper.insert_message(conversation_id, "user", user_message, "conversation")
-        file = file_helper.get_last_file_from_conversation(conversation_id=conversation_id)
+        file = file_helper.get_last_csv_file_from_conversation(conversation_id=conversation_id)
         if file: 
             df_d, file_path = file_to_dataframe(file)
             graph_option_full = llm_helper.LLM_graphgen(df_d.columns,user_message, messages_for_llm)
@@ -107,7 +107,7 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
                 query = return_data.get("query")
                 input_tokens_usados = return_data.get("input_tokens_usados")
                 output_tokens_usados = return_data.get("output_tokens_usados")       
-                file = file_helper.get_last_file_from_conversation(conversation_id=conversation_id)
+                file = file_helper.get_last_csv_file_from_conversation(conversation_id=conversation_id)
                 if file: 
                     df_d, file_path = file_to_dataframe(file)
                     graph_option_full = llm_helper.LLM_graphgen(df_d.columns,user_message, messages_for_llm)
