@@ -90,7 +90,8 @@ def get_time_difference_between_messages(conversation_id : int):
     with DB_ORM_Handler() as db:
         resp = db.query(query, return_data=True)
     if len(resp) != 0:
-        return resp.pop().get("tiempo_ejecucion")
+        tiempo = float(resp.pop().get("tiempo_ejecucion"))
+        return str(tiempo) + " s"
 
 def get_table(offset: Optional[int] = None, limit: Optional[int] = None, order_by: Optional[str] = None, order_way: Optional[str] = None):
     if limit is None:
