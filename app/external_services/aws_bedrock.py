@@ -74,7 +74,7 @@ def invoke_rag_llm_with_memory(rag_data: list,
     )
 
     formatted_human_input = human_input.format(**parameters)
-
+    
     prompt = ChatPromptTemplate.from_messages(
         [
             (
@@ -91,8 +91,8 @@ def invoke_rag_llm_with_memory(rag_data: list,
     history_aware_retriever = create_history_aware_retriever(model, retriever, prompt)
     question_answer_chain = create_stuff_documents_chain(model, prompt)
     rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
-    if len(memory) != 0:
-        memory.pop()
+    #if len(memory) != 0:
+    #    memory.pop()
     parameters["context"] = retriever
     parameters["chat_history"] = memory
     response = ""

@@ -118,9 +118,9 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
                     return generate_and_response_graph(file_path, dic_go, user_id, conversation_id, response_format)
         return {"response": "No tengo informacion con la que pueda realizar un grafico, haz una pregunta referente a la base de datos de FALP.", "conversation_id": conversation_id}
     else:
+        conversation_helper.insert_message(conversation_id, "user", user_message)
         messages = conversation_helper.get_messages_for_llm(conversation_id)
         messages_for_llm = llm_helper.format_llm_memory(messages)
-        conversation_helper.insert_message(conversation_id, "user", user_message)
         resp, tokens_LLM_SQL = llm_helper.LLM_SQL(question=user_message, messages=messages_for_llm)
         input_tokens_usados += num_tokens
         output_tokens_usados += tokens_LLM_SQL

@@ -77,8 +77,7 @@ my_data2 = [
 my_data3 = [
     """
     'consulta':
-    Pregunta relacionada a doctores, pacientes y/o atenciones o algo que pueda estar relacionado con estos.
-
+    Pregunta relacionada a doctores, pacientes y/o atenciones o algo que pueda estar relacionado con estos y consideres que tiene potencial de convertirse en una consulta para la base de datos.
     """,
 
     """

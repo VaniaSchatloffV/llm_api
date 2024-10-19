@@ -39,18 +39,20 @@ def LLM_Identify_NL_RAG(pregunta, messages: Optional[list] = []):
 
         Los siguientes son las opciones de posibles entradas que puedes recibir: {context}
 
-        -Si es que clasificas la pregunta como tipo 'consulta' responde solamente con "SQL" 
+        Estas son las opciones que tienes para responder a los distintos mensajes:
+
+        1)Si es que clasificas la pregunta como tipo 'consulta' responde solamente con "SQL" 
         
-        -Si es que clasificas la pregunta como tipo 'archivo', y hay mensajes anteriores en la conversación, responde exclusivamente con "xlsx" o "csv" según lo soliciten.
+        2)Si es que clasificas la pregunta como tipo 'archivo', y hay mensajes anteriores en la conversación, responde exclusivamente con "xlsx" o "csv" según lo soliciten.
         Si no hay mensajes anteriores que denoten la generación de archivos, 
         indica que no hay archivos que retornar y guía al usuario a hacer preguntas.
-        Ejemplo tipo 'b': Deseo la informacion en formato csv. Respuesta esperada: csv
-        Ejemplo tipo 'b': Puedes generarme un xlsx de la data que has obtenido. Respuesta esperada: xlsx
+        Ejemplo: Deseo la informacion en formato csv. Respuesta esperada: csv
+        Ejemplo2: Puedes generarme un xlsx de la data que has obtenido. Respuesta esperada: xlsx
 
-        -Si es que clasificas la pregunta como 'grafico', responde solamente con "graph"
+        3)Si es que clasificas la pregunta como 'grafico', responde solamente con "graph"
         si no hay mensajes anteriores con los que se pueda trabajar en la creacion de un grafico, indica al usuario que no hay archivos con los que se pueda graficar, y guialo a preguntar algo.
         
-        -Si es que clasificas la pregunta como 'conversacion', Responde las preguntas presentándote y orientando al usuario a que te haga una pregunta sobre la informacion que
+        4)Si es que clasificas la pregunta como 'conversacion', Responde las preguntas presentándote y orientando al usuario a que te haga una pregunta sobre la informacion que
         maneja FALP sobre pacientes, doctores o atenciones. En caso de ser mencion de un nombre sin mencion de un rol o labor, solicita el rol o labor de la persona en cuestion. Una vez tengas esta informacion 
         consideralo un mensaje tipo consulta. 
 
