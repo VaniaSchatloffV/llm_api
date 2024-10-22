@@ -122,7 +122,7 @@ def rag_retriever_huggin(rag_data: list, formatted_human_input: str, embeddings_
 
     documents = [Document(page_content=i) for i in rag_data]
 
-    inference_api_key = "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"
+    inference_api_key = "your key :)"
     embeddings = HuggingFaceInferenceAPIEmbeddings(api_key=inference_api_key, model_name=embeddings_model)
 
     document_embedding = embeddings.embed_documents(rag_data)
