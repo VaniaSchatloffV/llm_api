@@ -3,21 +3,19 @@ import faiss
 import numpy as np
 
 from typing import Optional
-from langchain_aws import BedrockEmbeddings, ChatBedrock
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_aws import BedrockEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain_core.output_parsers import StrOutputParser
-from langchain.chains import create_retrieval_chain, create_history_aware_retriever
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain.schema import Document
 
+from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
+
+import re
 import time
 
 from app.dependencies import get_settings
 settings = get_settings()
 
-def rag_retriever_titan_v1(rag_data: list, formatted_human_input: str, radio_busqueda: Optional[float] = 0.4, embeddings_model: Optional[str] = "amazon.titan-embed-text-v1"):
+def rag_retriever_titan_v1(rag_data: list, formatted_human_input: str,  embeddings_model: str = "amazon.titan-embed-text-v1", radio_busqueda: Optional[float] = 0.4):
     start_time = time.time()
     documents = [Document(page_content=i) for i in rag_data]
     
@@ -43,15 +41,17 @@ def rag_retriever_titan_v1(rag_data: list, formatted_human_input: str, radio_bus
     index_end_time = time.time()
 
     filtered_documents = [] 
-    distancias = []# no es necesario, solo debuggeo
+    distancias = []
     for i in range(len(I)):
-        filtered_documents.append(documents[i])
+        filtered_documents.append(documents[I[i]])
         distancias.append(D[i])#
-    
+
     for_start_time = time.time()
     docs_retornados = []
+    pattern = r'"([^"]*)"'
     for doc in filtered_documents:
-        docs_retornados.append(str(doc)[len("    En la tabla de nombre:             f "):len("    En la tabla de nombre:             f ")+9])#lol
+        doc_name = re.findall(pattern, str(doc))
+        docs_retornados.append(doc_name)#lol
     for_end_time = time.time()
     
     vector_start_time = time.time()
@@ -62,10 +62,10 @@ def rag_retriever_titan_v1(rag_data: list, formatted_human_input: str, radio_bus
     tiempo_vector = str(end_time - vector_start_time).replace(".", ",")
     tiempo_total = str(end_time - start_time - (for_end_time - for_start_time)).replace(".",",")
 
-    return vectorstore,embeddings_model, formatted_human_input,len(docs_retornados), docs_retornados, distancias, tiempo_index, tiempo_vector, tiempo_total
+    return vectorstore, embeddings_model+" r"+str(radio_busqueda), formatted_human_input,len(docs_retornados), docs_retornados, distancias, tiempo_index, tiempo_vector, tiempo_total
 
 
-def rag_retriever_titan_v2(rag_data: list, formatted_human_input: str, radio_busqueda: Optional[float] = 0.4, embeddings_model: Optional[str] = "amazon.titan-embed-text-v2:0"):
+def rag_retriever_titan_v2(rag_data: list, formatted_human_input: str, embeddings_model: str = "amazon.titan-embed-text-v2:0", radio_busqueda: Optional[float] = 0.15):
     start_time = time.time()
     documents = [Document(page_content=i) for i in rag_data]
     
@@ -81,7 +81,7 @@ def rag_retriever_titan_v2(rag_data: list, formatted_human_input: str, radio_bus
     question_array = np.array(question_embedding)
     question_array_norm = question_array/np.linalg.norm(question_array, keepdims= True)
     question_array_norm = question_array_norm.reshape(1, -1)
-
+    #print(question_array.shape)
     index = faiss.IndexFlatIP(document_array_norm.shape[1])
     index.add(document_array_norm)
 
@@ -91,15 +91,18 @@ def rag_retriever_titan_v2(rag_data: list, formatted_human_input: str, radio_bus
     index_end_time = time.time()
 
     filtered_documents = [] 
-    distancias = []# no es necesario, solo debuggeo
+    distancias = []
     for i in range(len(I)):
-        filtered_documents.append(documents[i])
+        filtered_documents.append(documents[I[i]])
         distancias.append(D[i])#
     
+    #print(filtered_documents)
     for_start_time = time.time()
     docs_retornados = []
+    pattern = r'"([^"]*)"'
     for doc in filtered_documents:
-        docs_retornados.append(str(doc)[len("    En la tabla de nombre:             f "):len("    En la tabla de nombre:             f ")+9])#lol
+        doc_name = re.findall(pattern, str(doc))
+        docs_retornados.append(doc_name)#lol
     for_end_time = time.time()
     
     vector_start_time = time.time()
@@ -110,4 +113,56 @@ def rag_retriever_titan_v2(rag_data: list, formatted_human_input: str, radio_bus
     tiempo_vector = str(end_time - vector_start_time).replace(".", ",")
     tiempo_total = str(end_time - start_time - (for_end_time - for_start_time)).replace(".",",")
 
-    return vectorstore,embeddings_model, formatted_human_input,len(docs_retornados), docs_retornados, distancias, tiempo_index, tiempo_vector, tiempo_total
+    return vectorstore,embeddings_model+" r"+str(radio_busqueda), formatted_human_input,len(docs_retornados), docs_retornados, distancias, tiempo_index, tiempo_vector, tiempo_total
+
+
+def rag_retriever_huggin(rag_data: list, formatted_human_input: str, embeddings_model: Optional[str] = "sentence-transformers/all-mpnet-base-v2", radio_busqueda: Optional[float] = 0.5):
+    
+    start_time = time.time()
+
+    documents = [Document(page_content=i) for i in rag_data]
+
+    inference_api_key = "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"
+    embeddings = HuggingFaceInferenceAPIEmbeddings(api_key=inference_api_key, model_name=embeddings_model)
+
+    document_embedding = embeddings.embed_documents(rag_data)
+
+    question_embedding = embeddings.embed_query(formatted_human_input)
+    
+    document_array = np.array(document_embedding)
+    document_array_norm = document_array/np.linalg.norm(document_array, axis=1, keepdims=True)
+
+    question_array = np.array(question_embedding)
+    question_array_norm = question_array/np.linalg.norm(question_array, keepdims= True)
+    question_array_norm = question_array_norm.reshape(1, -1)
+    
+    index = faiss.IndexFlatIP(document_array_norm.shape[1])
+    index.add(document_array_norm)
+    index_start_time = time.time()
+    lims, D, I = index.range_search(question_array_norm, radio_busqueda)
+    index_end_time = time.time()
+
+    filtered_documents = [] 
+    distancias = []# no es necesario, solo debuggeo
+    for i in range(len(I)):
+        filtered_documents.append(documents[I[i]])
+        distancias.append(D[i])#
+    
+    for_start_time = time.time()
+    docs_retornados = []
+    pattern = r'"([^"]*)"'
+    for doc in filtered_documents:
+        doc_name = re.findall(pattern, str(doc))
+        docs_retornados.append(doc_name)#lol
+    for_end_time = time.time()
+    
+    vector_start_time = time.time()
+    #FAISS.from_embeddings(documents=filtered_documents, embedding=embeddings)
+    vectorstore = FAISS.from_documents(documents=filtered_documents, embedding=embeddings)
+    retriever = vectorstore.as_retriever()
+    end_time = time.time()
+    tiempo_index = str(index_end_time - index_start_time).replace(".", ",")
+    tiempo_vector = str(end_time - vector_start_time).replace(".", ",")
+    tiempo_total = str(end_time - start_time - (for_end_time - for_start_time)).replace(".",",")
+
+    return vectorstore,embeddings_model+" r"+str(radio_busqueda), formatted_human_input,len(docs_retornados), docs_retornados, distancias, tiempo_index, tiempo_vector, tiempo_total

@@ -27,8 +27,8 @@ my_data = [
     Las entradas siempre son uno a uno, vale decir en cada entrada un paciente es atendido por un doctor
     La información almacenada comprende las columnas:
     'id_atencion' de tipo int: esta es la clave primaria de la tabla.
-    'id_doctor' de tipo int: es clave foránea de la tabla "doctores".
-    'id_paciente' de tipo int: es clave foránea de la tabla "pacientes".
+    'id_doctor' de tipo int: es clave foránea de la tabla 'doctores'.
+    'id_paciente' de tipo int: es clave foránea de la tabla 'pacientes'.
 
     """,
     """
@@ -57,14 +57,29 @@ my_data = [
     'id' de tipo int: esta es la clave primaria de la tabla.
     'nombre' de tipo varchar: este campo corresponde al nombre del examen. Algunos ejemplos de entradas son: 'Hemograma', 'Tomografía', 'Biopsia', todos parten con mayúscula.
     'tipo' de tipo varchar: este campo indica la categoría del examen. Ejemplos incluyen: 'Laboratorio', 'Imagenología', 'Patología', todos parten con mayúscula.
-    'id_paciente' de tipo int: es clave foránea de la tabla "pacientes", indicando a qué paciente se le realizó el examen.
+    'id_paciente' de tipo int: es clave foránea de la tabla 'pacientes', indicando a qué paciente se le realizó el examen.
     """,
 
-    """Los tomátes son frutas rojas y muy ricas! son mis favoritos!
-
+    """En la tabla de nombre: "tomates"
+    se almacena información referente a las diferentes variedades de tomates cultivados en distintas regiones.
+    La información almacenada comprende las columnas:
+    'id' de tipo int: esta es la clave primaria de la tabla.
+    'variedad' de tipo varchar: este campo corresponde al tipo de tomate. Ejemplos de entradas incluyen: 'Tomate Cherry', 'Tomate Roma', 'Tomate Perita', todos parten con mayúscula.
+    'color' de tipo varchar: este campo describe el color predominante del tomate. Ejemplos incluyen: 'Rojo', 'Amarillo', 'Verde', todos parten con mayúscula.
+    'peso_promedio' de tipo float: indica el peso promedio de un tomate de esta variedad en gramos.
+    'zona_cultivo' de tipo varchar: este campo indica la región o zona donde se cultiva el tomate. Ejemplos incluyen: 'Valle Central', 'La Serena', 'Quillota', todos parten con mayúscula.
     """,
 
-    """Una imagen de Bob esponja! Mira kristel! Una imagen de Bob esponja!"""
+    """En la tabla de nombre: "destinos_viaje"
+    se almacena información referente a diferentes destinos turísticos recomendados por una agencia de viajes.
+    La información almacenada comprende las columnas:
+    'id' de tipo int: esta es la clave primaria de la tabla.
+    'nombre_destino' de tipo varchar: este campo corresponde al nombre del destino turístico. Ejemplos de entradas incluyen: 'Paris', 'Nueva York', 'Tokio', todos parten con mayúscula.
+    'país' de tipo varchar: este campo indica el país donde se encuentra el destino. Ejemplos incluyen: 'Francia', 'Estados Unidos', 'Japón', todos parten con mayúscula.
+    'continente' de tipo varchar: este campo indica el continente donde está ubicado el destino. Ejemplos incluyen: 'Europa', 'América', 'Asia', todos parten con mayúscula.
+    'tipo_destino' de tipo varchar: este campo describe el tipo de destino. Ejemplos incluyen: 'Cultural', 'De Playa', 'De Montaña', todos parten con mayúscula.
+    'puntuación' de tipo int: es un número del 1 al 5 que indica la valoración general del destino basada en opiniones de los viajeros.
+    """
     
     ]
 
