@@ -174,7 +174,7 @@ def LLM_Translate_Data_to_NL(Data, question, query, tokens_used):
                 Asegurate de incluir la información en la respuesta generada.
                 Se conciso en tu respuesta, no respondas con mas informacion que el lenguaje natural que responda la pregunta.
                 Omite que es una lista o que la lista contiene diccionarios, no menciones SQL, en ningún caso.
-                Además, despues de esto, recuerda al usuario que puede pedir la información como excel o csv. 
+                Además, despues de esto, recuerda al usuario que puede pedir la información como excel, csv o gráfico. 
                 """
         else:
             system_prompt = """ 

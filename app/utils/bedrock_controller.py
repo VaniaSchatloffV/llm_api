@@ -214,7 +214,7 @@ def generate_query_and_data(resp, user_message, conversation_id, user_id, respon
 def generate_and_response_graph(file_path, dic_go, user_id, conversation_id, response_format):
     grafico, graph_name = graphic_helper.generar_grafico(file_path,dic_go)
     file_graph_id = file_helper.new_file(user_id, conversation_id, graph_name, "png")
-    file_created_msg = {"text": "Tu archivo ya esta listo, indica si requieres algun cambio en tu grafico para volver a generarlo", "graphical_option": dic_go, "file_id": file_graph_id,  "file_type": "png"}
+    file_created_msg = {"text": "Tu archivo ya esta listo, indica si requieres algún cambio en tu gráfico para volver a generarlo.", "graphical_option": dic_go, "file_id": file_graph_id,  "file_type": "png"}
     conversation_helper.insert_message(conversation_id, "assistant", file_created_msg, "file")
     response_format["response"] = {"text": file_created_msg.get("text"), "file_id": file_graph_id, "file_type": "png"}
     return response_format
