@@ -52,8 +52,8 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
     messages = conversation_helper.get_messages(conversation_id)
     messages_for_llm = llm_helper.format_llm_memory(messages)
     identify_resp, num_tokens = llm_helper.LLM_Identify_NL_RAG(user_message, messages_for_llm)
-    input_tokens_usados += 0
-    output_tokens_usados += num_tokens
+    input_tokens_usados += num_tokens.get("tokens_entrada")
+    output_tokens_usados += num_tokens.get("tokens_salida")
     classifier = identify_resp.get("answer")
 
     #Ruta para cuando el identify reconoce un mensaje de tipo opcion (csv,xlsx)
@@ -97,9 +97,9 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
                 conversation_helper.insert_message(conversation_id, "assistant", dic_go, "missing_info")
                 messages = conversation_helper.get_messages_for_llm(conversation_id)
                 messages_for_llm = llm_helper.format_llm_memory(messages)
-                resp, tokens_LLM_SQL = llm_helper.LLM_SQL_graph(question=user_message, messages=messages_for_llm)
-                input_tokens_usados += num_tokens
-                output_tokens_usados += tokens_LLM_SQL
+                resp, tokens_LLM_SQL_graph = llm_helper.LLM_SQL_graph(question=user_message, messages=messages_for_llm)
+                input_tokens_usados += tokens_LLM_SQL_graph.get("tokens_entrada")
+                output_tokens_usados += tokens_LLM_SQL_graph.get("tokens_salida")
                 return_data = generate_query_and_data(resp, user_message, conversation_id, user_id, response_format, messages_for_llm, messages, input_tokens_usados, output_tokens_usados) 
                 if return_data.get("response"):
                     return return_data.get("response")  
@@ -122,8 +122,9 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
         messages = conversation_helper.get_messages_for_llm(conversation_id)
         messages_for_llm = llm_helper.format_llm_memory(messages)
         resp, tokens_LLM_SQL = llm_helper.LLM_SQL(question=user_message, messages=messages_for_llm)
-        input_tokens_usados += num_tokens
-        output_tokens_usados += tokens_LLM_SQL
+        input_tokens_usados += tokens_LLM_SQL.get("tokens_entrada")
+        output_tokens_usados += tokens_LLM_SQL.get("tokens_salida")
+
         return_data = generate_query_and_data(resp, user_message, conversation_id, user_id, response_format, messages_for_llm, messages, input_tokens_usados, output_tokens_usados)
         if return_data.get("response"):
             return return_data.get("response")
@@ -176,8 +177,8 @@ def generate_query_and_data(resp, user_message, conversation_id, user_id, respon
                 messages = conversation_helper.get_messages_for_llm(conversation_id)
                 messages_for_llm = llm_helper.format_llm_memory(messages)
                 query, tokens_LLM_Fix_SQL = llm_helper.LLM_Fix_SQL(user_message, query, error, messages_for_llm)
-                input_tokens_usados += recognize_resp.usage_metadata.get("output_tokens")
-                output_tokens_usados += tokens_LLM_Fix_SQL
+                input_tokens_usados += tokens_LLM_Fix_SQL.get("tokens_entrada")
+                output_tokens_usados += tokens_LLM_Fix_SQL.get("tokens_salida")
                 recognize_fix_resp = llm_helper.LLM_recognize_SQL(query.get("answer"))
                 verification_fix = recognize_fix_resp.content
                 

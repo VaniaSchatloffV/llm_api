@@ -44,14 +44,14 @@ def rag_retriever(rag_data: list, formatted_human_input: str, radio_busqueda: Op
 
     vectorstore = FAISS.from_documents(documents=documents, embedding=bedrock_embeddings)
     retriever = vectorstore.as_retriever()
-    return retriever
+    return retriever, filtered_documents
 
 
 def invoke_rag_llm_with_memory(rag_data: list,
                             system_prompt: str,
                             human_input: str,
                             llm_model: Optional[str] = "anthropic.claude-3-sonnet-20240229-v1:0",
-                            embeddings_model: Optional[str] = "amazon.titan-embed-text-v1",
+                            embeddings_model: Optional[str] = "amazon.titan-embed-text-v2:0",
                             memory: Optional[list] = [],
                             parameters : Optional[dict] = {},
                             temperature=settings.llm_temperature,
@@ -86,7 +86,7 @@ def invoke_rag_llm_with_memory(rag_data: list,
             ),
         ]
     )
-    retriever = rag_retriever(rag_data=rag_data, formatted_human_input=formatted_human_input, radio_busqueda=0.3, embeddings_model=embeddings_model)
+    retriever, filtered_documents = rag_retriever(rag_data=rag_data, formatted_human_input=formatted_human_input, radio_busqueda=0.1, embeddings_model=embeddings_model)
     
     history_aware_retriever = create_history_aware_retriever(model, retriever, prompt)
     question_answer_chain = create_stuff_documents_chain(model, prompt)
@@ -95,14 +95,8 @@ def invoke_rag_llm_with_memory(rag_data: list,
     #    memory.pop()
     parameters["context"] = retriever
     parameters["chat_history"] = memory
-    response = ""
-    num_tokens = 0
-    for chunk in rag_chain.stream(parameters):
-        if chunk.get("answer"):
-            response+=(chunk)
-            num_tokens+=1
-    return response, num_tokens
-
+    response = rag_chain.invoke(parameters)
+    return response, model, filtered_documents
 
 
 def invoke_llm(human_input: str,
