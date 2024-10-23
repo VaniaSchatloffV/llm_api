@@ -78,7 +78,7 @@ def LLM_Identify_NL_RAG(pregunta, messages: Optional[list] = []):
     else:
         output_tokens = model.get_num_tokens(str(response))
     
-    num_tokens = {"tokens_entrada":formatted_system_prompt_tokens+human_input_tokens, "tokens_salida":output_tokens}
+    num_tokens = {"input_tokens":formatted_system_prompt_tokens+human_input_tokens, "output_tokens":output_tokens}
 
     return response, num_tokens
 
@@ -125,7 +125,7 @@ def LLM_SQL(question ,messages: list, temperature=settings.llm_temperature, top_
     else:
         output_tokens = model.get_num_tokens(str(response))
     
-    num_tokens = {"tokens_entrada":formatted_system_prompt_tokens+human_input_tokens, "tokens_salida":output_tokens}
+    num_tokens = {"input_tokens":formatted_system_prompt_tokens+human_input_tokens, "output_tokens":output_tokens}
     
     return response, num_tokens
 
@@ -187,7 +187,7 @@ def LLM_Fix_SQL(consulta, query, error, messages):
     else:
         output_tokens = model.get_num_tokens(str(response))
     
-    num_tokens = {"tokens_entrada":formatted_system_prompt_tokens+human_input_tokens, "tokens_salida":output_tokens}
+    num_tokens = {"input_tokens":formatted_system_prompt_tokens+human_input_tokens, "output_tokens":output_tokens}
 
     return response, num_tokens
 
@@ -317,7 +317,7 @@ def LLM_SQL_graph(question ,messages: list, temperature=settings.llm_temperature
     else:
         output_tokens = model.get_num_tokens(str(response))
     
-    num_tokens = {"tokens_entrada":formatted_system_prompt_tokens+human_input_tokens, "tokens_salida":output_tokens}
+    num_tokens = {"input_tokens":formatted_system_prompt_tokens+human_input_tokens, "output_tokens":output_tokens}
 
     return response, num_tokens
 
