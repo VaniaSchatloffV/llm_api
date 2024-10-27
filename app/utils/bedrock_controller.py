@@ -51,12 +51,14 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
     # Se obtienen mensajes anteriores para la llm
     messages = conversation_helper.get_messages(conversation_id)
     messages_for_llm = llm_helper.format_llm_memory(messages)
+
+    # Se identifica el tipo de mensaje del usuario
     identify_resp, num_tokens = llm_helper.LLM_Identify_NL_RAG(user_message, messages_for_llm)
-    
+    #print("pre identificar: " , input_tokens_usados, output_tokens_usados)
     input_tokens_usados, output_tokens_usados = tokens_helper.add_tokens_to_constant({"input_tokens":input_tokens_usados, 
                                                                                       "output_tokens":output_tokens_usados}, 
                                                                                      num_tokens)
-    
+    #print("post identificar: " , input_tokens_usados, output_tokens_usados)
     classifier = identify_resp.get("answer")
 
     #Ruta para cuando el identify reconoce un mensaje de tipo opcion (csv,xlsx)
@@ -176,6 +178,11 @@ def generate_query_and_data(resp, user_message, conversation_id, user_id, respon
 
     if verification == "NL":
         conversation_helper.insert_message(conversation_id, "assistant", resp.get("answer"))
+        tokens_helper.set_tokens(
+            conversation_id=conversation_id,
+            input_tokens_used_conversation = input_tokens_usados,
+            output_tokens_used_conversation = output_tokens_usados
+            )
         return {"response": resp.get("answer"), "conversation_id": conversation_id}
     elif verification == "SQL":
         # Ejecución de la consulta
