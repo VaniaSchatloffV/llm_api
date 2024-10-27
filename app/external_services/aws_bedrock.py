@@ -139,8 +139,6 @@ def invoke_llm(human_input: str,
         prompt 
         | model
         )
-    if len(messages) != 0:
-        messages.pop()
     parameters["chat_history"] = messages
     response = chain.invoke(parameters)
     return response 
