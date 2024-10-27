@@ -328,3 +328,12 @@ def LLM_Identify_NL(pregunta, messages: Optional[list] = []):
         temperature=settings.llm_temperature,
         top_p=settings.llm_top_p
     )
+
+def LLM_Summarize_Question(question, temperature=settings.llm_temperature, top_p=settings.llm_top_p):
+    system_prompt = """Analiza el siguiente mensaje y genera un resumen conciso pero descriptivo de este."""
+    return aws_bedrock.invoke_llm(human_input="{input}",
+                                    system_prompt=system_prompt,
+                                    parameters = {"input": question},
+                                    model = settings.llm_recognize_model,
+                                    temperature=temperature,
+                                    top_p=top_p)
