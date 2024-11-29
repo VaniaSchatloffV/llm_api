@@ -32,3 +32,10 @@ def get_tokens(conversation_id:int):
         input_and_output_tokens = tokens_usados_conversacion.pop()
         return input_and_output_tokens.get("input_tokens_used"), input_and_output_tokens.get("output_tokens_used")
     return 
+
+def add_tokens_to_constant(current_token_vals: dict, vals_to_add: dict):
+    input_tokens = current_token_vals.get("input_tokens")
+    output_tokens = current_token_vals.get("output_tokens")
+    input_tokens += vals_to_add.get("input_tokens")
+    output_tokens += vals_to_add.get("output_tokens")
+    return input_tokens, output_tokens

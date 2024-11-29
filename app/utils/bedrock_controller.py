@@ -51,9 +51,14 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
     # Se obtienen mensajes anteriores para la llm
     messages = conversation_helper.get_messages(conversation_id)
     messages_for_llm = llm_helper.format_llm_memory(messages)
+
+    # Se identifica el tipo de mensaje del usuario
     identify_resp, num_tokens = llm_helper.LLM_Identify_NL_RAG(user_message, messages_for_llm)
-    input_tokens_usados += 0
-    output_tokens_usados += num_tokens
+    #print("pre identificar: " , input_tokens_usados, output_tokens_usados)
+    input_tokens_usados, output_tokens_usados = tokens_helper.add_tokens_to_constant({"input_tokens":input_tokens_usados, 
+                                                                                      "output_tokens":output_tokens_usados}, 
+                                                                                     num_tokens)
+    #print("post identificar: " , input_tokens_usados, output_tokens_usados)
     classifier = identify_resp.get("answer")
 
     #Ruta para cuando el identify reconoce un mensaje de tipo opcion (csv,xlsx)
@@ -87,8 +92,10 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
             df_d, file_path = file_to_dataframe(file)
             graph_option_full = llm_helper.LLM_graphgen(df_d.columns,user_message, messages_for_llm)
             graph_option = graph_option_full.content
-            input_tokens_usados += graph_option_full.usage_metadata.get("input_tokens")
-            output_tokens_usados += graph_option_full.usage_metadata.get("output_tokens")
+            input_tokens_usados, output_tokens_usados = tokens_helper.add_tokens_to_constant(
+                                                        {"input_tokens":input_tokens_usados, "output_tokens":output_tokens_usados}, 
+                                                        graph_option_full.usage_metadata #usage metadata tiene campos input y output
+                                                        )
             dic_go = json.loads(graph_option)
             if dic_go.get("faltan_datos") == "false":
                 return generate_and_response_graph(file_path, dic_go, user_id, conversation_id, response_format)
@@ -97,9 +104,11 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
                 conversation_helper.insert_message(conversation_id, "assistant", dic_go, "missing_info")
                 messages = conversation_helper.get_messages_for_llm(conversation_id)
                 messages_for_llm = llm_helper.format_llm_memory(messages)
-                resp, tokens_LLM_SQL = llm_helper.LLM_SQL_graph(question=user_message, messages=messages_for_llm)
-                input_tokens_usados += num_tokens
-                output_tokens_usados += tokens_LLM_SQL
+                resp, tokens_LLM_SQL_graph = llm_helper.LLM_SQL_graph(question=user_message, messages=messages_for_llm)
+                
+                input_tokens_usados, output_tokens_usados = tokens_helper.add_tokens_to_constant(
+                                        {"input_tokens":input_tokens_usados, "output_tokens":output_tokens_usados}, 
+                                        tokens_LLM_SQL_graph)
                 return_data = generate_query_and_data(resp, user_message, conversation_id, user_id, response_format, messages_for_llm, messages, input_tokens_usados, output_tokens_usados) 
                 if return_data.get("response"):
                     return return_data.get("response")  
@@ -112,8 +121,9 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
                     df_d, file_path = file_to_dataframe(file)
                     graph_option_full = llm_helper.LLM_graphgen(df_d.columns,user_message, messages_for_llm)
                     graph_option = graph_option_full.content
-                    input_tokens_usados += graph_option_full.usage_metadata.get("input_tokens")
-                    output_tokens_usados += graph_option_full.usage_metadata.get("output_tokens")
+                    input_tokens_usados, output_tokens_usados = tokens_helper.add_tokens_to_constant(
+                                        {"input_tokens":input_tokens_usados, "output_tokens":output_tokens_usados}, 
+                                        graph_option_full.usage_metadata)
                     dic_go = json.loads(graph_option)
                     return generate_and_response_graph(file_path, dic_go, user_id, conversation_id, response_format)
         return {"response": "No tengo informacion con la que pueda realizar un grafico, haz una pregunta referente a la base de datos de FALP.", "conversation_id": conversation_id}
@@ -122,8 +132,11 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
         messages = conversation_helper.get_messages_for_llm(conversation_id)
         messages_for_llm = llm_helper.format_llm_memory(messages)
         resp, tokens_LLM_SQL = llm_helper.LLM_SQL(question=user_message, messages=messages_for_llm)
-        input_tokens_usados += num_tokens
-        output_tokens_usados += tokens_LLM_SQL
+
+        input_tokens_usados, output_tokens_usados = tokens_helper.add_tokens_to_constant(
+                                        {"input_tokens":input_tokens_usados, "output_tokens":output_tokens_usados}, 
+                                        tokens_LLM_SQL)
+
         return_data = generate_query_and_data(resp, user_message, conversation_id, user_id, response_format, messages_for_llm, messages, input_tokens_usados, output_tokens_usados)
         if return_data.get("response"):
             return return_data.get("response")
@@ -138,9 +151,9 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
         tokens_used = encoding.encode(str(data))
         translate_resp = llm_helper.LLM_Translate_Data_to_NL(data, user_message, query, tokens_used)
         
-        input_tokens_usados += translate_resp.usage_metadata.get("input_tokens")
-        output_tokens_usados += translate_resp.usage_metadata.get("output_tokens")
-        #print("in:", input_tokens_usados, "\nout:", output_tokens_usados)
+        input_tokens_usados, output_tokens_usados = tokens_helper.add_tokens_to_constant(
+                                        {"input_tokens":input_tokens_usados, "output_tokens":output_tokens_usados}, 
+                                        translate_resp.usage_metadata)
         
         nl_response = translate_resp.content
         response_format["response"] = {"text": nl_response}
@@ -152,16 +165,24 @@ def send_prompt_and_process(user_message: str, conversation_id: int, user_id: in
             output_tokens_used_conversation = output_tokens_usados
             )
 
-        return response_format
+        return response_format     
 
 def generate_query_and_data(resp, user_message, conversation_id, user_id, response_format, messages_for_llm, messages, input_tokens_usados, output_tokens_usados):
     # Verificacion del mensaje
     recognize_resp = llm_helper.LLM_recognize_SQL(resp.get("answer"))
     verification = recognize_resp.content
-    input_tokens_usados += recognize_resp.usage_metadata.get("input_tokens")
-    output_tokens_usados += recognize_resp.usage_metadata.get("output_tokens")
+
+    input_tokens_usados, output_tokens_usados = tokens_helper.add_tokens_to_constant(
+                                        {"input_tokens":input_tokens_usados, "output_tokens":output_tokens_usados}, 
+                                        recognize_resp.usage_metadata)
+
     if verification == "NL":
         conversation_helper.insert_message(conversation_id, "assistant", resp.get("answer"))
+        tokens_helper.set_tokens(
+            conversation_id=conversation_id,
+            input_tokens_used_conversation = input_tokens_usados,
+            output_tokens_used_conversation = output_tokens_usados
+            )
         return {"response": resp.get("answer"), "conversation_id": conversation_id}
     elif verification == "SQL":
         # Ejecución de la consulta
@@ -176,13 +197,18 @@ def generate_query_and_data(resp, user_message, conversation_id, user_id, respon
                 messages = conversation_helper.get_messages_for_llm(conversation_id)
                 messages_for_llm = llm_helper.format_llm_memory(messages)
                 query, tokens_LLM_Fix_SQL = llm_helper.LLM_Fix_SQL(user_message, query, error, messages_for_llm)
-                input_tokens_usados += recognize_resp.usage_metadata.get("output_tokens")
-                output_tokens_usados += tokens_LLM_Fix_SQL
+
+                input_tokens_usados, output_tokens_usados = tokens_helper.add_tokens_to_constant(
+                                        {"input_tokens":input_tokens_usados, "output_tokens":output_tokens_usados}, 
+                                        tokens_LLM_Fix_SQL)
+
                 recognize_fix_resp = llm_helper.LLM_recognize_SQL(query.get("answer"))
                 verification_fix = recognize_fix_resp.content
                 
-                input_tokens_usados += recognize_fix_resp.usage_metadata.get("input_tokens")
-                output_tokens_usados += recognize_fix_resp.usage_metadata.get("output_tokens")
+                input_tokens_usados, output_tokens_usados = tokens_helper.add_tokens_to_constant(
+                                        {"input_tokens":input_tokens_usados, "output_tokens":output_tokens_usados}, 
+                                        recognize_fix_resp.usage_metadata)
+
                 if verification_fix == "SQL":
                     db_response = execute_query(query.get("answer"), user_id, conversation_id)
                     conversation_helper.insert_message(conversation_id, "assistant", {"query": query.get("answer"), "file_id": db_response.get("file_id")}, "query_review")
